@@ -143,7 +143,7 @@ console.log(`[photos] ${beats.filter((b) => b.photo).length} fetched`);
 // ---------- 5. TTS ----------
 const audioDir = path.join(PUB, "lf-audio", SLUG);
 fs.mkdirSync(audioDir, { recursive: true });
-const spoken = beats.filter((b) => b.text.trim()).map((b) => ({ i: b.i, text: b.text }));
+const spoken = beats.filter((b) => (b.text || "").trim()).map((b) => ({ i: b.i, text: b.text }));
 const inPath = path.join(audioDir, "tts-input.json");
 fs.writeFileSync(inPath, JSON.stringify(spoken));
 const tts = spawnSync(PY, [path.join(EXPL, "edge_batch.py"), inPath], { ...spawnOpts, env: { ...process.env, EXPLAINER_VOICE: CH.voice } });
@@ -173,7 +173,7 @@ for (const b of beats) {
   b.startMs = Math.round(cursor);
   const mp3Rel = `lf-audio/${SLUG}/audio/beat-${String(b.i).padStart(2, "0")}.mp3`;
   const mp3Abs = path.join(PUB, mp3Rel);
-  b.audio = b.text.trim() && fs.existsSync(mp3Abs) && fs.statSync(mp3Abs).size > 2048 ? mp3Rel : null;
+  b.audio = (b.text || "").trim() && fs.existsSync(mp3Abs) && fs.statSync(mp3Abs).size > 2048 ? mp3Rel : null;
   b.words = buildWords(d?.words);
   cursor += b.ms;
 }

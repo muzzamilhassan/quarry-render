@@ -19,12 +19,13 @@ on:
 
 jobs:
   video:
+    if: ${{ github.event_name == 'schedule' || inputs.channel == '' || inputs.channel == matrix.channel }}
     runs-on: ubuntu-latest
     timeout-minutes: 55
     strategy:
       fail-fast: false
       matrix:
-        channel: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.channel && format('[\"{0}\"]', inputs.channel) || '[\"investors-compass\", \"money-rulebook\", \"debt-free-doctrine\", \"quotequarry\"]') }}
+        channel: [investors-compass, money-rulebook, debt-free-doctrine, quotequarry]
     steps:
       - uses: actions/checkout@v4
 

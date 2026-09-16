@@ -1,0 +1,7 @@
+node_modules/
+out/
+*.log
+public/lf-photos/
+public/lf-audio/
+public/lf-*.json
+public/cap-voice.mp3

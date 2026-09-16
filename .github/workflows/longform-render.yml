@@ -10,16 +10,11 @@ on:
         description: "script minutes (10 = real)"
         required: false
         default: "10"
-      channel:
-        description: "one channel only (blank = all 4)"
-        required: false
-        default: ""
   schedule:
     - cron: "0 18 * * *"
 
 jobs:
   video:
-    if: ${{ github.event_name == 'schedule' || inputs.channel == '' || inputs.channel == matrix.channel }}
     runs-on: ubuntu-latest
     timeout-minutes: 55
     strategy:

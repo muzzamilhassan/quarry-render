@@ -36,6 +36,11 @@ const CHANNELS = {
 };
 const CH = CHANNELS[SLUG];
 if (!CH) { console.error("unknown channel " + SLUG); process.exit(1); }
+const STAGGER_S = { "investors-compass": 0, "money-rulebook": 120, "debt-free-doctrine": 240, "quotequarry": 360 };
+if (process.env.LF_STAGGER !== "0" && STAGGER_S[SLUG]) {
+  console.log(`[stagger] waiting ${STAGGER_S[SLUG]}s (burst protection)`);
+  await new Promise((r) => setTimeout(r, STAGGER_S[SLUG] * 1000));
+}
 console.log(`[longform] channel=${SLUG} theme=${CH.theme} test=${TEST}`);
 
 const spawnOpts = { stdio: "inherit", shell: IS_WIN };
@@ -43,7 +48,7 @@ const step = (name, fn) => async () => {
   console.log(`[step] ${name} ...`);
   try { return await fn(); } catch (e) { console.log(`[warn] ${name}: ${String(e.message).slice(0, 160)}`); return null; }
 };
-const fit = (t, max) => { t = (t || "").trim(); if (t.length <= max) return t; const c = t.slice(0, max); return c.slice(0, c.lastIndexOf(" ")).trim() + "…"; };
+const fit = (t, max) => { t = String(t ?? "").trim(); if (t.length <= max) return t; const c = t.slice(0, max); return c.slice(0, c.lastIndexOf(" ")).trim() + "…"; };
 const sentences = (text) => String(text).split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter(Boolean);
 
 // ---------- 1. topic (AI, deduped against channel history) ----------
@@ -66,8 +71,8 @@ async function postJson(url, headers, body) {
 }
 async function aiJson(runner) {
   let lastErr;
-  for (let a = 0; a < 3; a++) {
-    try { return await runner(); } catch (e) { lastErr = e; await new Promise((r) => setTimeout(r, 4000)); }
+  for (let a = 0; a < 5; a++) {
+    try { return await runner(); } catch (e) { lastErr = e; const w = 6000 * (a + 1); console.log(`  retry ${a + 1}/5 in ${w / 1000}s`); await new Promise((r) => setTimeout(r, w)); }
   }
   throw lastErr;
 }

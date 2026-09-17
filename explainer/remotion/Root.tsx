@@ -6,6 +6,7 @@ import { LongVideo } from "./longscenes";
 import { DocV2 } from "./longscenes2";
 import { CapShowcase } from "./caption-showcase";
 import { Thumb } from "./thumb";
+import { Teacher } from "./teacher";
 
 const EMPTY: Storyboard = {
   title: "Explainer",
@@ -136,6 +137,20 @@ export const RemotionRoot: React.FC = () => {
         width={1280}
         height={720}
         defaultProps={{ thumb: { headline: "THE $136B TWEET", brand: "BRAND" } }}
+      />
+      <Composition
+        id="Teacher"
+        component={Teacher}
+        durationInFrames={10}
+        fps={30}
+        width={1920}
+        height={1080}
+        defaultProps={{ teacher: { beats: [], totalMs: 100, fps: 30 } }}
+        calculateMetadata={({ props }: any) => {
+          const d = Array.isArray(props?.beats) && props.beats.length > 0 ? props : (props?.teacher?.beats?.length ? props.teacher : null);
+          if (!d) return { durationInFrames: 10, fps: 30, width: 1920, height: 1080 };
+          return { durationInFrames: Math.max(Math.ceil((d.totalMs / 1000) * (d.fps || 30)), 10), fps: d.fps || 30, width: 1920, height: 1080, props: { teacher: d } };
+        }}
       />
     </>
   );

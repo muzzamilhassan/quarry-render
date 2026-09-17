@@ -87,8 +87,10 @@ if (!script) {
     console.log("[script] groq OK");
   } catch (e) { console.log(`[warn] groq: ${String(e.message).slice(0, 100)}`); }
 }
-if (!script || !Array.isArray(script.beats) || script.beats.length < 6) {
-  console.log("[script] using built-in teaching fallback");
+const wordCount = script && Array.isArray(script.beats) ? script.beats.reduce((a, b) => a + String(b.text || "").split(/\s+/).filter(Boolean).length, 0) : 0;
+const headlinesOk = script && Array.isArray(script.beats) && script.beats.filter((b) => String(b.headline || "").trim().length >= 8).length >= 5;
+if (!script || !Array.isArray(script.beats) || script.beats.length < 6 || wordCount < 200 || !headlinesOk) {
+  console.log(`[script] weak AI script (${script ? script.beats?.length : 0} beats, ${wordCount} words, headlines ${headlinesOk ? "ok" : "thin"}) — using built-in teaching fallback`);
   script = FALLBACK;
 }
 const B = script.beats.slice(0, 7);
@@ -99,10 +101,13 @@ const mediaDir = path.join(PUB, "teacher-media");
 const fit = (t, max) => { t = String(t ?? "").trim(); if (t.length <= max) return t; const c = t.slice(0, max); return c.slice(0, c.lastIndexOf(" ")).trim() + "…"; };
 const beats = [];
 const push = (b) => { b.i = beats.length; beats.push(b); };
+const DEFAULT_ICONS = { hook: ["coins", "clock", "growth"], say: ["dollar", "bulb", "growth"], cutout: ["person", "swap", "people"], board: [], quote: [], end: ["bulb", "growth", "clock"] };
 
 for (const [bi, sb] of B.entries()) {
   const b = { ...sb, text: sb.text || "" };
   b.headline = fit(b.headline, 90);
+  b.icons = Array.isArray(sb.icons) && sb.icons.length ? sb.icons.slice(0, 3) : (DEFAULT_ICONS[sb.layout] || []);
+  if (sb.layout === "say" && !sb.stamp) b.stamp = "+8% A YEAR";
   // media
   const queries = String(sb.mediaQuery || "").split("|").map((q) => q.trim()).filter(Boolean);
   b.photos = []; b.credits = [];

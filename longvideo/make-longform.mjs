@@ -127,6 +127,7 @@ const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
 const pool = [];
 let poolIdx = 0;
 let photoFails = 0;
+let photoIdx = 0;
 async function getPhoto(query, outPath) {
   let r = await fetchPhoto({ key: process.env.PEXELS_API_KEY, query, outPath });
   if (!r) r = await fetchPhotoPixabay({ key: process.env.PIXABAY_API_KEY, query, outPath });

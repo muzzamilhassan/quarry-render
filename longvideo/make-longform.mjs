@@ -96,13 +96,19 @@ console.log(`[topic] "${topic.title}" | persona: ${topic.personaName || topic.pe
 
 // ---------- 2. script (existing 10-min engine) ----------
 process.chdir(DIR);
-fs.rmSync(path.join(DIR, "out"), { recursive: true, force: true }); // isolate this run's script dir
 const MINUTES = process.env.LF_MINUTES || "10";
-const gen = spawnSync("node", ["generate-longscript.mjs", "--topic", topic.title, "--minutes", MINUTES, "--brand", SLUG], { ...spawnOpts, cwd: DIR });
-if (gen.status !== 0) throw new Error("script generation failed");
-const outRoot = path.join(DIR, "out");
-const slugDir = fs.readdirSync(outRoot).map((f) => path.join(outRoot, f)).filter((f) => fs.statSync(f).isDirectory()).sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0];
-const script = JSON.parse(fs.readFileSync(path.join(slugDir, "script.json"), "utf8"));
+let script = null;
+for (let attempt = 0; attempt < 3 && !script; attempt++) {
+  if (attempt > 0) { console.log(`[script] retry ${attempt}/2 after 45s (rate-limit burst)`); await new Promise((r) => setTimeout(r, 45000)); }
+  fs.rmSync(path.join(DIR, "out"), { recursive: true, force: true }); // isolate this run's script dir
+  const gen = spawnSync("node", ["generate-longscript.mjs", "--topic", topic.title, "--minutes", MINUTES, "--brand", SLUG], { ...spawnOpts, cwd: DIR });
+  if (gen.status !== 0) continue;
+  const outRoot = path.join(DIR, "out");
+  const slugDir = fs.readdirSync(outRoot).map((f) => path.join(outRoot, f)).filter((f) => fs.statSync(f).isDirectory()).sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0];
+  if (!slugDir) continue;
+  try { script = JSON.parse(fs.readFileSync(path.join(slugDir, "script.json"), "utf8")); } catch { script = null; }
+}
+if (!script) throw new Error("script generation failed");
 console.log(`[script] ${script.stats.totalWords}w ≈ ${script.stats.estMinutes}min, ${script.chapters.length} chapters`);
 
 // ---------- 3. beats ----------

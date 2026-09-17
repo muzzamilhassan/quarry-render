@@ -119,26 +119,38 @@ script.chapters.forEach((ch, ci) => {
 push({ layout: "end", headline: `Follow ${CH.brand} for more.`, text: "" });
 console.log(`[beats] ${beats.length} beats`);
 
-// ---------- 4. photos ----------
+// ---------- 4. photos (rate-limit aware + pool reuse: no beat goes photoless) ----------
 const photoDir = path.join(PUB, "lf-photos", SLUG);
 const nicheWords = CH.niche.split(",").map((x) => x.trim());
-let photoIdx = 0;
+const cleanQ = (t) => String(t || "").replace(/[^A-Za-z0-9 ]/g, " ").split(/\s+/).filter(Boolean).slice(0, 4).join(" ");
+const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
+const pool = [];
+let poolIdx = 0;
+let photoFails = 0;
+async function getPhoto(query, outPath) {
+  let r = await fetchPhoto({ key: process.env.PEXELS_API_KEY, query, outPath });
+  if (!r) r = await fetchPhotoPixabay({ key: process.env.PIXABAY_API_KEY, query, outPath });
+  if (!r) { await sleepMs(2600); r = await fetchPhoto({ key: process.env.PEXELS_API_KEY, query: nicheWords[photoIdx % nicheWords.length], outPath }); }
+  if (!r) r = await fetchPhotoPixabay({ key: process.env.PIXABAY_API_KEY, query: nicheWords[photoIdx % nicheWords.length], outPath });
+  const rel = r ? path.relative(PUB, r.file).split(path.sep).join("/") : null;
+  if (rel) { pool.push(rel); return rel; }
+  photoFails++;
+  if (pool.length) { const reuse = pool[poolIdx++ % pool.length]; console.log(`[photo] reuse pool image`); return reuse; }
+  return null;
+}
 for (const b of beats) {
   if (b.layout !== "split" && b.layout !== "hero") continue;
-  const q = b.layout === "hero" ? (topic.personaQuery || nicheWords[0]) : `${b.chapterTitle} ${nicheWords[photoIdx % nicheWords.length]}`;
-  let r = await fetchPhoto({ key: process.env.PEXELS_API_KEY, query: q.slice(0, 60), outPath: path.join(photoDir, `p-${b.i}.jpg`) });
-  if (!r) r = await fetchPhotoPixabay({ key: process.env.PIXABAY_API_KEY, query: q.slice(0, 60), outPath: path.join(photoDir, `p-${b.i}.jpg`) });
-  if (!r) { await new Promise((res) => setTimeout(res, 1000)); r = await fetchPhoto({ key: process.env.PEXELS_API_KEY, query: q.slice(0, 60), outPath: path.join(photoDir, `p-${b.i}.jpg`) }); }
-  if (r) b.photo = path.relative(PUB, r.file).split(path.sep).join("/");
+  const q = b.layout === "hero" ? (topic.personaQuery || nicheWords[0]) : `${cleanQ(b.chapterTitle)} ${nicheWords[photoIdx % nicheWords.length]}`;
+  b.photo = await getPhoto(q.slice(0, 60), path.join(photoDir, `p-${b.i}.jpg`));
   photoIdx++;
-  await new Promise((res) => setTimeout(res, 250));
+  await sleepMs(350);
 }
-console.log(`[photos] ${beats.filter((b) => b.photo).length} fetched`);
+console.log(`[photos] ${beats.filter((b) => b.photo).length} set | pool ${pool.length} | failed ${photoFails}`);
 
 // ---------- 5. TTS ----------
 const audioDir = path.join(PUB, "lf-audio", SLUG);
 fs.mkdirSync(audioDir, { recursive: true });
-const spoken = beats.filter((b) => b.text.trim()).map((b) => ({ i: b.i, text: b.text }));
+const spoken = beats.filter((b) => (b.text || "").trim()).map((b) => ({ i: b.i, text: b.text }));
 const inPath = path.join(audioDir, "tts-input.json");
 fs.writeFileSync(inPath, JSON.stringify(spoken));
 const tts = spawnSync(PY, [path.join(EXPL, "edge_batch.py"), inPath], { ...spawnOpts, env: { ...process.env, EXPLAINER_VOICE: CH.voice } });
@@ -168,7 +180,7 @@ for (const b of beats) {
   b.startMs = Math.round(cursor);
   const mp3Rel = `lf-audio/${SLUG}/audio/beat-${String(b.i).padStart(2, "0")}.mp3`;
   const mp3Abs = path.join(PUB, mp3Rel);
-  b.audio = b.text.trim() && fs.existsSync(mp3Abs) && fs.statSync(mp3Abs).size > 2048 ? mp3Rel : null;
+  b.audio = (b.text || "").trim() && fs.existsSync(mp3Abs) && fs.statSync(mp3Abs).size > 2048 ? mp3Rel : null;
   b.words = buildWords(d?.words);
   cursor += b.ms;
 }

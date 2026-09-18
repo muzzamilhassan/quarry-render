@@ -6,6 +6,7 @@ import { LongVideo } from "./longscenes";
 import { DocV2 } from "./longscenes2";
 import { CapShowcase } from "./caption-showcase";
 import { Thumb } from "./thumb";
+import { TechVideo } from "./tech-video";
 import { Teacher } from "./teacher";
 
 const EMPTY: Storyboard = {
@@ -137,6 +138,15 @@ export const RemotionRoot: React.FC = () => {
         width={1280}
         height={720}
         defaultProps={{ thumb: { headline: "THE $136B TWEET", brand: "BRAND" } }}
+      />
+      <Composition
+        id="TechVideo"
+        component={TechVideo}
+        durationInFrames={10}
+        fps={30}
+        width={1920}
+        height={1080}
+        defaultProps={{ scenes: [], starts: [], durs: [], sceneWords: [], sceneAudio: [], music: null }}
       />
       <Composition
         id="Teacher"

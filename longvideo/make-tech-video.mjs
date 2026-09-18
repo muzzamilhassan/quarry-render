@@ -182,6 +182,6 @@ if (ensure.status !== 0) throw new Error("browser ensure failed");
 const outMp4 = path.join(EXPL, "out", "tech-video.mp4");
 const args = (conc) => ["remotion", "render", "remotion/index.ts", "TechVideo", outMp4, `--props=${propsPath}`, `--concurrency=${conc}`, "--timeout=240000", "--port=3492"];
 let r = spawnSync("npx", args(3), { cwd: EXPL, ...spawnOpts });
-if (r.status !== 0) r = spawnSync(args(2), { cwd: EXPL, ...spawnOpts });
+if (r.status !== 0) r = spawnSync("npx", args(2), { cwd: EXPL, ...spawnOpts });
 if (r.status !== 0) throw new Error("render failed");
 console.log(`[DONE] ${outMp4} (${(fs.statSync(outMp4).size / 1048576).toFixed(1)} MB, ${totalS}s)`);

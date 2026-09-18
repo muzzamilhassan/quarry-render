@@ -147,6 +147,12 @@ export const RemotionRoot: React.FC = () => {
         width={1920}
         height={1080}
         defaultProps={{ scenes: [], starts: [], durs: [], sceneWords: [], sceneAudio: [], music: null }}
+        calculateMetadata={({ props }) => {
+          const last = Array.isArray(props?.starts) && props.starts.length ? props.starts[props.starts.length - 1] : 0;
+          const lastD = Array.isArray(props?.durs) && props.durs.length ? props.durs[props.durs.length - 1] : 1;
+          const total = Math.max(last + lastD + 0.5, 1);
+          return { durationInFrames: Math.ceil(total * 30), fps: 30, width: 1920, height: 1080, props };
+        }}
       />
       <Composition
         id="Teacher"

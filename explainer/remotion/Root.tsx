@@ -151,7 +151,8 @@ export const RemotionRoot: React.FC = () => {
           const last = Array.isArray(props?.starts) && props.starts.length ? props.starts[props.starts.length - 1] : 0;
           const lastD = Array.isArray(props?.durs) && props.durs.length ? props.durs[props.durs.length - 1] : 1;
           const total = Math.max(last + lastD + 0.5, 1);
-          return { durationInFrames: Math.ceil(total * 30), fps: 30, width: 1920, height: 1080, props };
+          const fps = Number(props?.fps) || 30;
+          return { durationInFrames: Math.ceil(total * fps), fps, width: 1920, height: 1080, props };
         }}
       />
       <Composition

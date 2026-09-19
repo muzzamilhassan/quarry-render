@@ -15,6 +15,8 @@ const IS_WIN = process.platform === "win32";
 const PY = IS_WIN ? "python" : "python3";
 const tIdx = process.argv.indexOf("--topic");
 const TOPIC = tIdx > 0 ? process.argv[tIdx + 1] : "Auto Increment vs UUID";
+const mIdx = process.argv.indexOf("--minutes");
+const MINUTES = mIdx > 0 ? Number(process.argv[mIdx + 1]) : 10;
 
 try {
   for (const line of fs.readFileSync(path.join(ROOT, ".env"), "utf8").split("\n")) {
@@ -26,7 +28,23 @@ try {
 const spawnOpts = { stdio: "inherit", shell: IS_WIN };
 
 // ---------------- AI scene script ----------------
-const SYSTEM = `You write scripts for "Dark Mode Minimalist Tech" explainer videos (60-100 seconds) in the style of modern coding channels.
+const SYSTEM = MINUTES >= 5
+  ? `You write scripts for LONG "Dark Mode Minimalist Tech" explainer videos (${MINUTES} minutes) in the style of premium coding channels.
+Return ONLY JSON: {"scenes":[ ... ]} using these scene templates:
+{"t":"title","headline":"max 46 chars","sub":"SHORT TAG","text":""}
+{"t":"statement","label":"SECTION — NAME","headline":"big claim, max 46 chars","sub":"optional kicker","text":"narration 90-115 words"}
+{"t":"terminal","label":"SECTION — NAME","termTitle":"file — context","lines":["code line max 44 chars","-- comment"],"caption":"takeaway line","text":"narration 90-115 words"}
+{"t":"flow","label":"SECTION — NAME","nodes":["Box A","Box B","Box C"],"loop":true,"caption":"one-line takeaway","text":"narration 90-115 words"}
+{"t":"steps","label":"SECTION — NAME","items":["step text max 46 chars"],"caption":"one line","text":"narration 90-115 words"}
+{"t":"bars","label":"SECTION — NAME","bars":[{"label":"NAME","text":"value","v":8}],"caption":"line","text":"narration 90-115 words"}
+{"t":"clash","label":"SECTION — NAME","a":"node-A","b":"node-B","value":1001,"warn":"SHORT WARNING","text":"narration 90-115 words"}
+{"t":"code","label":"SECTION — NAME","big":"short reveal max 44 chars","caption":"why it matters","grid":false,"lines":["code line"],"text":"narration 90-115 words"}
+{"t":"end","headline":"Now it makes sense.","sub":"FOLLOW FOR MORE","text":""}
+Rules:
+- 12-16 scenes total. First = title, last = end. Mix the templates; use "flow" at least twice (it draws the animated diagram) and "steps" at least twice.
+- "text" = narration. Teaching voice, direct, plain English, no em-dashes. Each 90-115 words.
+- Facts MUST be technically accurate for the topic. lines max 46 chars, max 2-3 per terminal.`
+  : `You write scripts for "Dark Mode Minimalist Tech" explainer videos (60-100 seconds) in the style of modern coding channels.
 Return ONLY JSON: {"scenes":[ ... ]} using EXACTLY these scene templates in this order:
 1. {"t":"title","headline":"punchy question, max 42 chars","sub":"SHORT TECH TAG","text":""}
 2. 2-3 middle scenes chosen from:
@@ -74,17 +92,8 @@ const groq = () => aiJson(async () => {
   return parseJsonLoose(d.choices?.[0]?.message?.content || "");
 });
 
-// guaranteed fallback = the tested UUID story, mapped to the schema
-const FALLBACK = {
-  scenes: [
-    { t: "title", headline: "Why Databases Fight Over IDs", sub: "AUTO INCREMENT vs UUID", text: "" },
-    { t: "counter", label: "STEP 1 — THE BASELINE", nodeTitle: "users_db — US-East", sub: "single database, counting up", values: [1001, 1002, 1003, 1004], text: "Every database needs a unique ID for every row. The simplest way is to just count. One thousand one, one thousand two, one thousand three. Done." },
-    { t: "bars", label: "STEP 2 — THE PRICE", bars: [{ label: "INT", text: "4 bytes", v: 4 }, { label: "BIGINT", text: "8 bytes", v: 8 }, { label: "UUID", text: "16 bytes", v: 16 }], caption: "and a UUID is impossible to say out loud", text: "A plain integer uses only four bytes. A UUID uses sixteen, and it is impossible to say out loud. So why would anyone pay four times the memory?" },
-    { t: "clash", label: "STEP 3 — THE CONFLICT", a: "users_db — US-East", b: "users_db — Europe", value: 1001, warn: "COLLISION — ID 1001 EXISTS TWICE", text: "Because the moment you run two databases, one in the US and one in Europe, both start counting from zero. And both generate ID one thousand one. Collision." },
-    { t: "code", label: "STEP 4 — THE FIX", big: "550e8400-e29b-41d4", caption: "the first bits are a TIMESTAMP — every ID sorts itself", grid: true, lines: ["id = uuidv7();  -- unique + sorted"], text: "The fix is UUID version seven. It hides a timestamp inside the ID itself, so every value is unique, and the newest rows always sort first. That is why modern systems love it." },
-    { t: "end", headline: "Now you know why UUIDs exist.", sub: "FOLLOW FOR MORE", text: "" },
-  ],
-};
+// guaranteed fallback = full Event Loop deep-dive (accurate, tested content)
+const FALLBACK = JSON.parse(fs.readFileSync(path.join(DIR, "fallback-eventloop.json"), "utf8"));
 
 console.log(`[tech] topic: ${TOPIC}`);
 let script = null;
@@ -98,11 +107,12 @@ if (!script) {
     console.log("[script] groq OK");
   } catch (e) { console.log(`[warn] groq: ${String(e.message).slice(0, 90)}`); }
 }
+const minWords = MINUTES >= 5 ? 60 : 20;
 const okShape = script && Array.isArray(script.scenes)
-  && script.scenes.length >= 6 && script.scenes.length <= 8
+  && script.scenes.length >= (MINUTES >= 5 ? 11 : 6) && script.scenes.length <= 18
   && script.scenes[0]?.t === "title" && script.scenes[script.scenes.length - 1]?.t === "end"
-  && script.scenes.slice(1, -1).every((s) => String(s.text || "").split(/\s+/).filter(Boolean).length >= 20)
-  && script.scenes.slice(1, -1).every((s) => ["terminal", "counter", "bars", "clash", "code"].includes(s.t));
+  && script.scenes.slice(1, -1).every((s) => String(s.text || "").split(/\s+/).filter(Boolean).length >= minWords)
+  && script.scenes.slice(1, -1).every((s) => ["terminal", "counter", "bars", "clash", "code", "flow", "steps", "statement"].includes(s.t));
 if (!okShape) {
   console.log(`[script] weak/invalid AI scenes — using built-in UUID fallback`);
   script = FALLBACK;
@@ -119,7 +129,8 @@ const inPath = path.join(audioDir, "tts-input.json");
 fs.writeFileSync(inPath, JSON.stringify(spoken));
 const vIdx = process.argv.indexOf("--voice");
 const VOICE = vIdx > 0 ? process.argv[vIdx + 1] : "en-US-AndrewNeural";
-const tts = spawnSync(PY, [path.join(EXPL, "edge_batch.py"), inPath], { ...spawnOpts, env: { ...process.env, EXPLAINER_VOICE: VOICE, EXPLAINER_RATE: "+4%" } });
+const RATE = MINUTES >= 5 ? "0%" : "+4%";
+const tts = spawnSync(PY, [path.join(EXPL, "edge_batch.py"), inPath], { ...spawnOpts, env: { ...process.env, EXPLAINER_VOICE: VOICE, EXPLAINER_RATE: RATE } });
 if (tts.status !== 0) throw new Error("tts failed");
 const durs = JSON.parse(fs.readFileSync(path.join(audioDir, "tts-durations.json"), "utf8"));
 const byI = new Map(durs.map((d) => [d.i, d]));
@@ -146,7 +157,7 @@ console.log(`[timeline] ${scenes.length} scenes, ${totalS}s total`);
 
 // ---------------- music (clean minimal tech subset only) ----------------
 const ALL = JSON.parse(fs.readFileSync(path.join(DIR, "approved-music.json"), "utf8"));
-const TECH_CALM = ["Deliberate Thought", "Cut Trance", "Shiny Tech"];
+const TECH_CALM = ["Deliberate Thought", "Cut Trance"]; // fixed calm bed — no random mismatches
 const pool = ALL.filter((m) => TECH_CALM.includes(m.title));
 const track = await (async () => { try { return await pickApprovedTrack((pool.length ? pool : ALL).map((m) => m.title)); } catch { return null; } })();
 let music = null;
@@ -168,6 +179,7 @@ const props = {
   scenes,
   starts,
   durs: dursArr,
+  fps: MINUTES >= 5 ? 24 : 30,
   sceneWords: scenes.map((s, i) => buildWords(byI.get(i)?.words)),
   sceneAudio,
   music,
@@ -182,6 +194,6 @@ if (ensure.status !== 0) throw new Error("browser ensure failed");
 const outMp4 = path.join(EXPL, "out", "tech-video.mp4");
 const args = (conc) => ["remotion", "render", "remotion/index.ts", "TechVideo", outMp4, `--props=${propsPath}`, `--concurrency=${conc}`, "--timeout=240000", "--port=3492"];
 let r = spawnSync("npx", args(3), { cwd: EXPL, ...spawnOpts });
-if (r.status !== 0) r = spawnSync("npx", args(2), { cwd: EXPL, ...spawnOpts });
+if (r.status !== 0) r = spawnSync(args(2), { cwd: EXPL, ...spawnOpts });
 if (r.status !== 0) throw new Error("render failed");
 console.log(`[DONE] ${outMp4} (${(fs.statSync(outMp4).size / 1048576).toFixed(1)} MB, ${totalS}s)`);

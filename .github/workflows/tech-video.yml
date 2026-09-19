@@ -13,11 +13,15 @@ on:
         description: "Edge-TTS voice (blank = en-US-AndrewNeural)"
         required: false
         default: ""
+      minutes:
+        description: "target minutes (10 = full long-form)"
+        required: false
+        default: "10"
 
 jobs:
   render:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
 
@@ -52,7 +56,7 @@ jobs:
         run: |
           EXTRA=""
           if [ -n "${{ inputs.voice }}" ]; then EXTRA="--voice ${{ inputs.voice }}"; fi
-          node make-tech-video.mjs --topic "${{ inputs.topic }}" $EXTRA
+          node make-tech-video.mjs --topic "${{ inputs.topic }}" --minutes ${{ inputs.minutes }} $EXTRA
           ntfyTopic="${NTFY_TOPIC:-}"
           if [ -n "$ntfyTopic" ]; then
             curl -s -H "Title: Tech video rendered" -d "Topic: ${{ inputs.topic }}" "https://ntfy.sh/$ntfyTopic" || true

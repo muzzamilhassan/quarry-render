@@ -282,7 +282,111 @@ const RENDERERS: Record<string, React.FC<any>> = {
   bars: SBars,
   clash: SClash,
   code: SCode,
+  flow: SFlow,
+  steps: SSteps,
+  statement: SStatement,
   end: SEnd,
+};
+
+
+// ---------------- long-form diagram templates ----------------
+const MiniNode: React.FC<{ text: string; color: string; active: boolean; x: number; y: number; w?: number }> = ({ text, color, active, x, y, w = 380 }) => {
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const s = spring({ frame: f, fps, config: { damping: 12, stiffness: 160 } });
+  return (
+    <div style={{ position: "absolute", left: x, top: y, width: w, transform: `scale(${Math.max(s, 0.01)})`, transformOrigin: "center" }}>
+      <div style={{ background: PANEL, border: `1.5px solid ${active ? color : "rgba(255,255,255,0.18)"}`, borderRadius: 14, padding: "22px 18px", textAlign: "center", fontFamily: MONO, fontWeight: 700, fontSize: 26, color: active ? "#000" : WHITE, background: active ? color : PANEL, boxShadow: active ? `0 0 30px ${color}88` : "none" }}>
+        {text}
+      </div>
+    </div>
+  );
+};
+
+const SFlow: React.FC<{ s: any; accent: string }> = ({ s, accent }) => {
+  const f = useCurrentFrame();
+  const nodes: string[] = (s.nodes || []).slice(0, 4);
+  const n = nodes.length;
+  const W = 1920;
+  const boxW = n === 2 ? 460 : 380;
+  const gap = (W - 200 - n * boxW) / Math.max(n - 1, 1);
+  const active = Math.floor(f / 45) % n;
+  return (
+    <>
+      {s.label ? <SceneLabel text={s.label} /> : null}
+      {nodes.map((txt, i) => (
+        <MiniNode key={i} text={txt} color={accent} active={i === active} x={100 + i * (boxW + gap)} y={380} w={boxW} />
+      ))}
+      {nodes.slice(0, -1).map((_, i) => (
+        <svg key={`a${i}`} width={gap + 20} height={40} style={{ position: "absolute", left: 100 + boxW + i * (boxW + gap) - 10, top: 455 }}>
+          <line x1="0" y1="20" x2={gap - 8} y2="20" stroke={DIM} strokeWidth={3} strokeDasharray="8 8" />
+          <path d={`M ${gap - 16} 10 L ${gap - 4} 20 L ${gap - 16} 30`} fill="none" stroke={DIM} strokeWidth={3} strokeLinecap="round" />
+        </svg>
+      ))}
+      {s.loop ? (
+        <svg width={1920} height={1080} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+          <path d={`M ${100 + n * boxW + (n - 1) * gap - boxW / 2} 560 Q 960 760 100 + ${boxW / 2} 560`}
+            fill="none" stroke={accent} strokeWidth={4} strokeLinecap="round"
+            strokeDasharray="16 14" strokeDashoffset={-f * 2.2} opacity={0.85} />
+          <text x="960" y="740" textAnchor="middle" fill={accent} fontFamily={MONO} fontSize={26} letterSpacing="0.25em">EVENT LOOP — REPEAT FOREVER</text>
+        </svg>
+      ) : null}
+      {s.caption ? (
+        <div style={{ position: "absolute", top: s.loop ? 810 : 640, left: 260, right: 260, textAlign: "center", fontFamily: MONO, fontSize: 28, color: DIM }}>{s.caption}</div>
+      ) : null}
+    </>
+  );
+};
+
+const SSteps: React.FC<{ s: any; accent: string }> = ({ s, accent }) => {
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const items: string[] = (s.items || []).slice(0, 5);
+  return (
+    <>
+      {s.label ? <SceneLabel text={s.label} /> : null}
+      <div style={{ position: "absolute", top: 240, left: 420, right: 300 }}>
+        {items.map((it, i) => {
+          const p = spring({ frame: f - 8 - i * 14, fps, config: { damping: 200 } });
+          return (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 30, marginBottom: 44, opacity: p, transform: `translateX(${(1 - p) * 60}px)` }}>
+              <div style={{ minWidth: 64, height: 64, borderRadius: 14, background: `${accent}22`, border: `1.5px solid ${accent}`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontWeight: 700, fontSize: 30, color: accent, ...glow(accent, 0.3) }}>{i + 1}</div>
+              <div style={{ fontFamily: SANS, fontWeight: 700, fontSize: 42, color: WHITE }}>{it}</div>
+            </div>
+          );
+        })}
+      </div>
+      {s.caption ? (
+        <div style={{ position: "absolute", top: 820, left: 260, right: 260, textAlign: "center", fontFamily: MONO, fontSize: 26, color: DIM }}>{s.caption}</div>
+      ) : null}
+    </>
+  );
+};
+
+const SStatement: React.FC<{ s: any; accent: string }> = ({ s, accent }) => (
+  <>
+    {s.label ? <SceneLabel text={s.label} /> : null}
+    <AbsoluteFill style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ textAlign: "center", padding: "0 160px" }}>
+        <div style={{ fontFamily: SANS, fontWeight: 900, fontSize: 100, color: WHITE, lineHeight: 1.15 }}>
+          <MarkedText text={s.headline || ""} color={accent} />
+        </div>
+        {s.sub ? <div style={{ marginTop: 40, fontFamily: MONO, fontSize: 32, color: accent, letterSpacing: "0.2em" }}>{s.sub}</div> : null}
+      </div>
+    </AbsoluteFill>
+  </>
+);
+
+const MarkedText: React.FC<{ text: string; color: string }> = ({ text, color }) => {
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const p = spring({ frame: f - 10, fps, config: { damping: 200 } });
+  return (
+    <span style={{ position: "relative", display: "inline-block" }}>
+      <span style={{ position: "absolute", left: -10, right: -10, top: "10%", bottom: "6%", background: `${color}55`, transform: `scaleX(${p})`, transformOrigin: "left center", borderRadius: 8 }} />
+      <span style={{ position: "relative" }}>{text}</span>
+    </span>
+  );
 };
 
 // ---------------- captions ----------------
@@ -344,7 +448,7 @@ export const TechVideo: React.FC<any> = (props) => {
         );
       })}
       {audio.map((a, i) => a ? (
-        <Sequence key={`a${i}`} from={u(starts[i + 1] ?? starts[i])} durationInFrames={u(durs[i + 1] ?? durs[i])}>
+        <Sequence key={`a${i}`} from={u(starts[i] || 0)} durationInFrames={u(durs[i] || 4)}>
           <Audio src={staticFile(a)} />
         </Sequence>
       ) : null)}

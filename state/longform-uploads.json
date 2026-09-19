@@ -31,6 +31,14 @@
       "publishAt": "2026-09-21T03:00:00Z",
       "artifactId": 10520696430,
       "runId": 35272382676
+    },
+    {
+      "date": "2026-09-19",
+      "title": "How a $5 Billion Hedge Fund Almost Crashed the Global Economy",
+      "videoId": "pmxrdWM911c",
+      "publishAt": "2026-09-21T03:00:00Z",
+      "artifactId": 10590929015,
+      "runId": 35465245466
     }
   ],
   "money-rulebook": [
@@ -65,6 +73,14 @@
       "publishAt": "2026-09-21T03:45:00Z",
       "artifactId": 10521186304,
       "runId": 35272382676
+    },
+    {
+      "date": "2026-09-19",
+      "title": "He Stole $8B and Thought It Was a Game",
+      "videoId": "ZB3tEHtmU8c",
+      "publishAt": "2026-09-21T03:45:00Z",
+      "artifactId": 10590219957,
+      "runId": 35465245466
     }
   ],
   "debt-free-doctrine": [
@@ -99,6 +115,14 @@
       "publishAt": "2026-09-21T04:30:00Z",
       "artifactId": 10520700110,
       "runId": 35272382676
+    },
+    {
+      "date": "2026-09-19",
+      "title": "Lehman’s Collapse: How One Firm Triggered a Global Financial Earthquake",
+      "videoId": "MSKBAHvpShw",
+      "publishAt": "2026-09-21T04:30:00Z",
+      "artifactId": 10591321798,
+      "runId": 35465245466
     }
   ],
   "quotequarry": [
@@ -133,6 +157,14 @@
       "publishAt": "2026-09-21T05:15:00Z",
       "artifactId": 10521125569,
       "runId": 35272382676
+    },
+    {
+      "date": "2026-09-19",
+      "title": "How Marcus Aurelius Stayed Unshakable While the Empire Fell Apart",
+      "videoId": "54vBN_VeBvE",
+      "publishAt": "2026-09-21T05:15:00Z",
+      "artifactId": 10591795995,
+      "runId": 35465245466
     }
   ]
 }

@@ -17,6 +17,10 @@ on:
         description: "target minutes (10 = full long-form)"
         required: false
         default: "10"
+      fallback:
+        description: "true = use curated deep-dive script (guaranteed length)"
+        required: false
+        default: "false"
 
 jobs:
   render:
@@ -56,7 +60,9 @@ jobs:
         run: |
           EXTRA=""
           if [ -n "${{ inputs.voice }}" ]; then EXTRA="--voice ${{ inputs.voice }}"; fi
-          node make-tech-video.mjs --topic "${{ inputs.topic }}" --minutes ${{ inputs.minutes }} $EXTRA
+          FB=""
+          if [ "${{ inputs.fallback }}" = "true" ]; then FB="--force-fallback"; fi
+          node make-tech-video.mjs --topic "${{ inputs.topic }}" --minutes ${{ inputs.minutes }} $FB $EXTRA
           ntfyTopic="${NTFY_TOPIC:-}"
           if [ -n "$ntfyTopic" ]; then
             curl -s -H "Title: Tech video rendered" -d "Topic: ${{ inputs.topic }}" "https://ntfy.sh/$ntfyTopic" || true

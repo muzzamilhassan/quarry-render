@@ -1,0 +1,8 @@
+{
+  "name": "quarry-render",
+  "private": true,
+  "description": "Public render + upload pipeline (free Actions minutes). Upload deps live here; video render deps live in explainer/.",
+  "dependencies": {
+    "googleapis": "^144.0.0"
+  }
+}

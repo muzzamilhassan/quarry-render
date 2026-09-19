@@ -11,7 +11,7 @@ import { google } from "googleapis";
 
 const DIR = import.meta.dirname;
 const ROOT = path.resolve(DIR, "..");
-const RENDER_REPO = "muzzamilhassan/quarry-render";
+const RENDER_REPO = "muzzamilhassan/quarry-render"; // SAME repo — public = free minutes
 const GH_TOKEN = process.env.GITHUB_PAT || process.env.GH_TOKEN || "";
 const ONLY = process.argv.indexOf("--channel");
 const ONLY_SLUG = ONLY > 0 ? process.argv[ONLY + 1] : null;
@@ -25,6 +25,13 @@ try {
 
 const CHANNELS = ["investors-compass", "money-rulebook", "debt-free-doctrine", "quotequarry"];
 const SLOT_ET = { "investors-compass": "19:00", "money-rulebook": "19:45", "debt-free-doctrine": "20:30", "quotequarry": "21:15" };
+// documentary thumbnail style (approved 09-19): brand kicker + serif phrase + giant key word
+const BRAND = {
+  "investors-compass": { label: "INVESTOR'S COMPASS DOCUMENTARIES", monogram: "IC", serif: "THE INSIDE STORY OF" },
+  "money-rulebook": { label: "THE MONEY RULEBOOK DOCUMENTARIES", monogram: "MR", serif: "THE TRUE STORY OF" },
+  "debt-free-doctrine": { label: "DEBT-FREE DOCTRINE DOCUMENTARIES", monogram: "DFD", serif: "THE FALL OF" },
+  "quotequarry": { label: "QUOTE QUARRY DOCUMENTARIES", monogram: "QQ", serif: "THE MIND OF" },
+};
 const CLIENT_ID = process.env.YOUTUBE_CLIENT_ID || "";
 const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET || "";
 const UPCOMING = new Date("2026-01-01"); // sentinel
@@ -37,7 +44,11 @@ const gh = (args) => {
 };
 const ghJson = (args) => {
   const r = gh(args);
-  try { return JSON.parse(r.stdout); } catch { return null; }
+  try { return JSON.parse(r.stdout); } catch {
+    const err = String(r.stderr || r.error || "unknown gh error").split("\n").filter(Boolean).slice(0, 3).join(" | ");
+    console.log(`[warn] gh ${args[0]} failed (exit ${r.status}): ${err.slice(0, 200)}`);
+    return null;
+  }
 };
 
 function etToUTC(y, mo, d, h, mi) {
@@ -72,6 +83,72 @@ function channelAuth(slug) {
   return a;
 }
 
+// ---- documentary thumbnail generation (approved style, see thumbnails/gen-doc-thumbnail.py) ----
+const THUMB_DIR = path.join(ROOT, "thumbnails");
+
+function bigWordFromTitle(title) {
+  let t = String(title || "").split(/[:—–|]/)[0].trim(); // "Theranos: The $9B..." -> "Theranos"
+  if (!t) t = String(title || "");
+  const stop = new Set(["THE", "A", "AN", "OF", "HOW", "WHY", "AND", "TO", "IN", "INSIDE"]);
+  const words = t.toUpperCase().replace(/[^A-Z0-9 $]/g, "").split(/\s+/).filter((w) => w && !stop.has(w));
+  words.sort((a, b) => b.length - a.length);
+  let big = words[0] || "STORY";
+  if (big.length > 12) big = big.slice(0, 12);
+  return big;
+}
+
+async function wikiPhotoFor(query) {
+  // try the top 3 articles for this query; first one with a lead photo wins
+  const api = "https://en.wikipedia.org/w/api.php";
+  const headers = { "User-Agent": "QuarryStudio/1.0 (thumbnail pipeline)" };
+  const sr = await (await fetch(`${api}?action=query&format=json&list=search&srsearch=${encodeURIComponent(query)}&srlimit=3`, { headers })).json();
+  const arts = (sr.query?.search || []).map((s) => s.title);
+  for (const title of arts) {
+    try {
+      const pi = await (await fetch(`${api}?action=query&format=json&titles=${encodeURIComponent(title)}&prop=pageimages&piprop=thumbnail&pithumbsize=1000`, { headers })).json();
+      const src = Object.values(pi.query?.pages || {})[0]?.thumbnail?.source;
+      if (src && /\.(jpe?g|png)(\?|$)/i.test(src)) {
+        const res = await fetch(src, { headers });
+        if (!res.ok) continue;
+        return { buf: Buffer.from(await res.arrayBuffer()), article: title };
+      }
+    } catch { }
+  }
+  throw new Error("no lead photo in top results for " + query);
+}
+
+async function buildThumbnail(slug, meta) {
+  const brand = BRAND[slug] || { label: "QUARRY STUDIOS DOCUMENTARIES", monogram: "QS", serif: "THE TRUE STORY OF" };
+  const big = String(meta.thumbBig || bigWordFromTitle(meta.title)).toUpperCase().slice(0, 12);
+  // subject: renderer may pin it (meta.thumbSubject); else key word, then first tag, then title keywords
+  const queries = [meta.thumbSubject, big, (meta.tags || [])[0], String(meta.title || "").split(/[:—–|]/)[0]]
+    .filter(Boolean).map(String);
+  let photo = null;
+  for (const q of queries) {
+    try { photo = await wikiPhotoFor(q); break; } catch { }
+  }
+  if (!photo) throw new Error("no subject photo found");
+  const dest = path.join(THUMB_DIR, "assets", `wiki-${slug}.jpg`);
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.writeFileSync(dest, photo.buf);
+  const spec = {
+    out: path.join(THUMB_DIR, "demos", `doc-${slug}.png`),
+    photo: dest,
+    mask: "oval",
+    kicker: brand.label,
+    serif: brand.serif,
+    big,
+    subtitle: (meta.tags || []).slice(0, 3).map((t) => String(t).toUpperCase().slice(0, 18)),
+    monogram: brand.monogram,
+  };
+  const specPath = path.join(THUMB_DIR, `spec-${slug}.json`);
+  fs.writeFileSync(specPath, JSON.stringify(spec, null, 2));
+  const r = spawnSync("python3", [path.join(THUMB_DIR, "gen-doc-thumbnail.py"), "--spec", specPath], { encoding: "utf8" });
+  if (r.status !== 0 || !fs.existsSync(spec.out)) throw new Error("render failed: " + String(r.stderr).slice(0, 120));
+  console.log(`[thumb] generated "${big}" (photo: ${photo.article}) for ${slug}`);
+  return spec.out;
+}
+
 async function processChannel(slug) {
   if (ONLY_SLUG && slug !== ONLY_SLUG) return;
   console.log(`\n=== ${slug} ===`);
@@ -86,8 +163,8 @@ async function processChannel(slug) {
     const arts = ghJson(["api", `repos/${RENDER_REPO}/actions/runs/${run.databaseId}/artifacts`, "--jq", ".artifacts"]) || [];
     const art = arts.find((a) => a.name === `lf-${slug}` && !a.expired);
     if (!art) continue;
-    if ((uploads[slug] || []).some((u) => u.artifactId === art.id)) { console.log(`[skip] artifact ${art.id} already uploaded`); continue; }
-    if (skippedShort.includes(art.id)) { console.log(`[skip] artifact ${art.id} is a short test render`); continue; }
+    if ((uploads[slug] || []).some((u) => String(u.artifactId) === String(art.id))) { console.log(`[skip] artifact ${art.id} already uploaded`); continue; }
+    if (skippedShort.includes(art.id) || skippedShort.map(String).includes(String(art.id))) { console.log(`[skip] artifact ${art.id} is a short test render`); continue; }
 
     fs.rmSync(inbox, { recursive: true, force: true });
     fs.mkdirSync(inbox, { recursive: true });
@@ -110,8 +187,14 @@ async function processChannel(slug) {
   console.log(`[found] run ${chosen.run} artifact ${chosen.art.id}`);
   const meta = chosen.meta;
   const videoFile = path.join(inbox, meta.videoFile);
-  const thumbFile = path.join(inbox, meta.thumbFile);
+  let thumbFile = path.join(inbox, meta.thumbFile);
   if (!fs.existsSync(videoFile)) throw new Error("video missing in artifact");
+  try {
+    const gen = await buildThumbnail(slug, meta);
+    if (gen) thumbFile = gen;
+  } catch (e) {
+    console.log(`[warn] style thumbnail skipped (${String(e.message).slice(0, 90)}) — using render thumbnail`);
+  }
   const sizeMb = (fs.statSync(videoFile).size / 1048576).toFixed(1);
   console.log(`[artifact] "${meta.title}" ${sizeMb} MB`);
 

@@ -23,6 +23,14 @@
       "publishAt": "2026-09-20T03:00:00Z",
       "artifactId": 10566363133,
       "runId": 35389624097
+    },
+    {
+      "date": "2026-09-19",
+      "title": "Lehman’s 2008 Collapse: What Went Wrong and How to Avoid the Next Crash",
+      "videoId": "CzLk6RrE8Ww",
+      "publishAt": "2026-09-21T03:00:00Z",
+      "artifactId": 10520696430,
+      "runId": 35272382676
     }
   ],
   "money-rulebook": [
@@ -49,6 +57,14 @@
       "publishAt": "2026-09-20T03:45:00Z",
       "artifactId": 10566860332,
       "runId": 35389624097
+    },
+    {
+      "date": "2026-09-19",
+      "title": "Theranos: How a $9 Billion Unicorn Crumbled in Six Years",
+      "videoId": "M0pC1P1KzAI",
+      "publishAt": "2026-09-21T03:45:00Z",
+      "artifactId": 10521186304,
+      "runId": 35272382676
     }
   ],
   "debt-free-doctrine": [
@@ -75,6 +91,14 @@
       "publishAt": "2026-09-20T04:30:00Z",
       "artifactId": 10565308794,
       "runId": 35389624097
+    },
+    {
+      "date": "2026-09-19",
+      "title": "Enron: How $74 B Vanished in One Day",
+      "videoId": "83DGQyTf8yM",
+      "publishAt": "2026-09-21T04:30:00Z",
+      "artifactId": 10520700110,
+      "runId": 35272382676
     }
   ],
   "quotequarry": [
@@ -101,6 +125,14 @@
       "publishAt": "2026-09-20T05:15:00Z",
       "artifactId": 10566496047,
       "runId": 35389624097
+    },
+    {
+      "date": "2026-09-19",
+      "title": "The Stoic Empire: How Marcus Aurelius Merged Power with Philosophy",
+      "videoId": "ZilWzmjoL6I",
+      "publishAt": "2026-09-21T05:15:00Z",
+      "artifactId": 10521125569,
+      "runId": 35272382676
     }
   ]
 }

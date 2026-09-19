@@ -275,18 +275,6 @@ const SCode: React.FC<{ s: any; accent: string }> = ({ s, accent }) => {
   );
 };
 
-const RENDERERS: Record<string, React.FC<any>> = {
-  title: STitle,
-  terminal: STerminal,
-  counter: SCounter,
-  bars: SBars,
-  clash: SClash,
-  code: SCode,
-  flow: SFlow,
-  steps: SSteps,
-  statement: SStatement,
-  end: SEnd,
-};
 
 
 // ---------------- long-form diagram templates ----------------
@@ -422,6 +410,19 @@ const Captions: React.FC<{ words: Array<{ w: string; t0: number; t1: number }>; 
       </div>
     </div>
   );
+};
+
+const RENDERERS: Record<string, React.FC<any>> = {
+  title: STitle,
+  terminal: STerminal,
+  counter: SCounter,
+  bars: SBars,
+  clash: SClash,
+  code: SCode,
+  flow: SFlow,
+  steps: SSteps,
+  statement: SStatement,
+  end: SEnd,
 };
 
 // ---------------- orchestrator ----------------

@@ -95,7 +95,7 @@ const groq = () => aiJson(async () => {
 });
 
 // guaranteed fallback = full Event Loop deep-dive (accurate, tested content)
-const FALLBACK = JSON.parse(fs.readFileSync(path.join(DIR, "fallback-eventloop.json"), "utf8"));
+const FALLBACK = { scenes: JSON.parse(fs.readFileSync(path.join(DIR, "fallback-eventloop.json"), "utf8")) };
 
 console.log(`[tech] topic: ${TOPIC}`);
 if (FORCE_FALLBACK) console.log("[tech] --force-fallback: using curated deep-dive script (skips AI)");

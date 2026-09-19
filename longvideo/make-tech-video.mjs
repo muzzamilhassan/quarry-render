@@ -15,6 +15,8 @@ const IS_WIN = process.platform === "win32";
 const PY = IS_WIN ? "python" : "python3";
 const tIdx = process.argv.indexOf("--topic");
 const TOPIC = tIdx > 0 ? process.argv[tIdx + 1] : "Auto Increment vs UUID";
+const fIdx = process.argv.indexOf("--force-fallback");
+const FORCE_FALLBACK = fIdx > 0;
 const mIdx = process.argv.indexOf("--minutes");
 const MINUTES = mIdx > 0 ? Number(process.argv[mIdx + 1]) : 10;
 
@@ -96,12 +98,14 @@ const groq = () => aiJson(async () => {
 const FALLBACK = JSON.parse(fs.readFileSync(path.join(DIR, "fallback-eventloop.json"), "utf8"));
 
 console.log(`[tech] topic: ${TOPIC}`);
+if (FORCE_FALLBACK) console.log("[tech] --force-fallback: using curated deep-dive script (skips AI)");
 let script = null;
-try {
+if (FORCE_FALLBACK) script = null;
+else try {
   script = await gemini();
   console.log("[script] gemini OK");
 } catch (e) { console.log(`[warn] gemini: ${String(e.message).slice(0, 90)}`); }
-if (!script) {
+if (!script && !FORCE_FALLBACK) {
   try {
     script = await groq();
     console.log("[script] groq OK");
@@ -113,7 +117,7 @@ const okShape = script && Array.isArray(script.scenes)
   && script.scenes[0]?.t === "title" && script.scenes[script.scenes.length - 1]?.t === "end"
   && script.scenes.slice(1, -1).every((s) => String(s.text || "").split(/\s+/).filter(Boolean).length >= minWords)
   && script.scenes.slice(1, -1).every((s) => ["terminal", "counter", "bars", "clash", "code", "flow", "steps", "statement"].includes(s.t));
-if (!okShape) {
+if (FORCE_FALLBACK || !okShape) {
   console.log(`[script] weak/invalid AI scenes — using built-in UUID fallback`);
   script = FALLBACK;
 }

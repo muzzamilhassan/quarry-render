@@ -39,6 +39,14 @@
       "publishAt": "2026-09-21T03:00:00Z",
       "artifactId": 10590929015,
       "runId": 35465245466
+    },
+    {
+      "date": "2026-09-20",
+      "title": "The $46 B LTCM Collapse: How a Hedge Fund Crushed Wall Street",
+      "videoId": "s8mR9yI6Hmw",
+      "publishAt": "2026-09-22T03:00:00Z",
+      "artifactId": 10611749598,
+      "runId": 35533863608
     }
   ],
   "money-rulebook": [
@@ -81,6 +89,14 @@
       "publishAt": "2026-09-21T03:45:00Z",
       "artifactId": 10590219957,
       "runId": 35465245466
+    },
+    {
+      "date": "2026-09-20",
+      "title": "How Enron Broke the World",
+      "videoId": "WB1AlGkyROg",
+      "publishAt": "2026-09-22T03:45:00Z",
+      "artifactId": 10613110539,
+      "runId": 35533863608
     }
   ],
   "debt-free-doctrine": [
@@ -123,6 +139,14 @@
       "publishAt": "2026-09-21T04:30:00Z",
       "artifactId": 10591321798,
       "runId": 35465245466
+    },
+    {
+      "date": "2026-09-20",
+      "title": "How Enron Went From Wall Street Darling to Historic Bankruptcy",
+      "videoId": "200-aPq2bCc",
+      "publishAt": "2026-09-22T04:30:00Z",
+      "artifactId": 10613185106,
+      "runId": 35533863608
     }
   ],
   "quotequarry": [
@@ -165,6 +189,14 @@
       "publishAt": "2026-09-21T05:15:00Z",
       "artifactId": 10591795995,
       "runId": 35465245466
+    },
+    {
+      "date": "2026-09-20",
+      "title": "The Stoic Emperor Who Weathered the Deadliest Plague Since Rome",
+      "videoId": "B8sImsFjZZA",
+      "publishAt": "2026-09-22T05:15:00Z",
+      "artifactId": 10613465107,
+      "runId": 35533863608
     }
   ]
 }

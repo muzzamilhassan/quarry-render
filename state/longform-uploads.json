@@ -47,6 +47,14 @@
       "publishAt": "2026-09-22T03:00:00Z",
       "artifactId": 10611749598,
       "runId": 35533863608
+    },
+    {
+      "date": "2026-09-21",
+      "title": "When Wall Street Fell: The Crash That Ignited the Great Depression",
+      "videoId": "j3bg6z0gpfg",
+      "publishAt": "2026-09-23T03:00:00Z",
+      "artifactId": 10665124820,
+      "runId": 35656599271
     }
   ],
   "money-rulebook": [
@@ -97,6 +105,14 @@
       "publishAt": "2026-09-22T03:45:00Z",
       "artifactId": 10613110539,
       "runId": 35533863608
+    },
+    {
+      "date": "2026-09-21",
+      "title": "Enron's Collapse: How One Deal Turned Into a $74 Billion Fraud",
+      "videoId": "EimVvTrvrLY",
+      "publishAt": "2026-09-23T03:45:00Z",
+      "artifactId": 10667100899,
+      "runId": 35656599271
     }
   ],
   "debt-free-doctrine": [
@@ -147,6 +163,14 @@
       "publishAt": "2026-09-22T04:30:00Z",
       "artifactId": 10613185106,
       "runId": 35533863608
+    },
+    {
+      "date": "2026-09-21",
+      "title": "How a Forgotten Lottery Ticket Changed an Entire Industry",
+      "videoId": "eJsvkuRFogs",
+      "publishAt": "2026-09-23T04:30:00Z",
+      "artifactId": 10666424844,
+      "runId": 35656599271
     }
   ],
   "quotequarry": [
@@ -197,6 +221,14 @@
       "publishAt": "2026-09-22T05:15:00Z",
       "artifactId": 10613465107,
       "runId": 35533863608
+    },
+    {
+      "date": "2026-09-21",
+      "title": "Marcus Aurelius: How a Stoic Emperor Managed War, Wealth, and Legacy",
+      "videoId": "7cgMsbYkNy8",
+      "publishAt": "2026-09-23T05:15:00Z",
+      "artifactId": 10667021534,
+      "runId": 35656599271
     }
   ]
 }

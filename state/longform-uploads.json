@@ -55,6 +55,14 @@
       "publishAt": "2026-09-23T03:00:00Z",
       "artifactId": 10665124820,
       "runId": 35656599271
+    },
+    {
+      "date": "2026-09-22",
+      "title": "Lehman Brothers Collapse Explained: 2008 Crisis",
+      "videoId": "oggNH29hSSU",
+      "publishAt": "2026-09-24T03:00:00Z",
+      "artifactId": 10698365370,
+      "runId": 35734958551
     }
   ],
   "money-rulebook": [
@@ -113,6 +121,14 @@
       "publishAt": "2026-09-23T03:45:00Z",
       "artifactId": 10667100899,
       "runId": 35656599271
+    },
+    {
+      "date": "2026-09-22",
+      "title": "The Most Surprising Money Story Ever Told",
+      "videoId": "r4NoqT72EAE",
+      "publishAt": "2026-09-24T03:45:00Z",
+      "artifactId": 10698660893,
+      "runId": 35734958551
     }
   ],
   "debt-free-doctrine": [
@@ -171,6 +187,14 @@
       "publishAt": "2026-09-23T04:30:00Z",
       "artifactId": 10666424844,
       "runId": 35656599271
+    },
+    {
+      "date": "2026-09-22",
+      "title": "The Most Surprising Money Story Ever Told",
+      "videoId": "0q3oCEahQCw",
+      "publishAt": "2026-09-24T04:30:00Z",
+      "artifactId": 10697553720,
+      "runId": 35734958551
     }
   ],
   "quotequarry": [
@@ -229,6 +253,14 @@
       "publishAt": "2026-09-23T05:15:00Z",
       "artifactId": 10667021534,
       "runId": 35656599271
+    },
+    {
+      "date": "2026-09-22",
+      "title": "7 Marcus Aurelius Stoic Lessons That Changed History",
+      "videoId": "VabRurub6Co",
+      "publishAt": "2026-09-24T05:15:00Z",
+      "artifactId": 10699161791,
+      "runId": 35734958551
     }
   ]
 }

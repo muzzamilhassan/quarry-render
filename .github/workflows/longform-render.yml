@@ -74,6 +74,7 @@ jobs:
           path: |
             explainer/out/lf-${{ matrix.channel }}.mp4
             explainer/out/lf-thumb-${{ matrix.channel }}.jpg
+            explainer/out/lf-srt-${{ matrix.channel }}.srt
             explainer/out/lf-meta-${{ matrix.channel }}.json
           retention-days: 14
           if-no-files-found: error

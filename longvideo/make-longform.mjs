@@ -51,8 +51,10 @@ const HIST = path.join(ROOT, "state", `longform-${SLUG}.json`);
 const history = (() => { try { return JSON.parse(fs.readFileSync(HIST, "utf8")); } catch { return []; } })();
 const recentTitles = history.slice(-25).map((h) => h.title);
 
-const TOPIC_SYS = `You plan documentary YouTube videos. Return ONLY JSON: {"title":"...","thumbHeadline":"...","personaQuery":"...","personaName":"..."}.
+const TOPIC_SYS = `You plan documentary YouTube videos. Return ONLY JSON: {"title":"...","keyword":"...","titles":["5 title variants"],"thumbHeadline":"...","personaQuery":"...","personaName":"..."}.
 - "title": a documentary topic for this niche, a real story with real facts you know well: NICHE.
+- "keyword": the main phrase people SEARCH on YouTube for this story (3-6 words, e.g. "stock market crash explained").
+- "titles": exactly 5 YouTube title variants using different formulas (number+outcome, curiosity gap, warning, contrarian, X vs Y). Max 70 chars each. One must contain the keyword.
 - "thumbHeadline": 3-5 punchy words for the thumbnail (max 22 chars), no punctuation except $ or numbers.
 - "personaQuery": the single most FAMOUS person, logo, or object tied to the story (e.g. "Warren Buffett", "Twitter logo", "silicon wafer") - this is used to find its Wikipedia photo.
 - "personaName": that same name.
@@ -92,6 +94,18 @@ console.log("[step] topic ...");
 let topic = await step("gemini-topic", geminiTopic)();
 if (!topic) topic = await step("groq-topic", groqTopic)();
 if (!topic || !topic.title) { topic = { title: "The Most Surprising Money Story Ever Told", thumbHeadline: "THE UNTOLD STORY", personaQuery: CH.niche.split(",")[0], personaName: "" }; }
+const keyword = String(topic.keyword || CH.niche.split(",")[0]).trim();
+const titles5 = Array.isArray(topic.titles) ? topic.titles.filter(Boolean) : [];
+const scoreTitle = (t) => {
+  const tt = String(t || "");
+  let sc = 0;
+  if (keyword && tt.toLowerCase().includes(keyword.toLowerCase().split(" ")[0])) sc += 2;
+  if (tt.length <= 70) sc += 1;
+  if (/[0-9?]/.test(tt)) sc += 1;
+  return sc;
+};
+const bestTitle = titles5.length ? titles5.slice().sort((a, b) => scoreTitle(b) - scoreTitle(a))[0] : topic.title;
+if (titles5.length) console.log(`[seo] picked title (${scoreTitle(bestTitle)}pts): "${bestTitle}"`);
 console.log(`[topic] "${topic.title}" | persona: ${topic.personaName || topic.personaQuery}`);
 
 // ---------- 2. script (existing 10-min engine) ----------
@@ -265,15 +279,6 @@ let thumbFile = null;
 const chapterBeats = beats.filter((b) => b.layout === "chapter");
 function fmtTime(sec) { const m = Math.floor(sec / 60); const s = Math.round(sec % 60); return `${m}:${String(s).padStart(2, "0")}`; }
 const chapters = script.chapters.map((c, i) => ({ t: fmtTime((chapterBeats[i]?.startMs || 0) / 1000), title: c.title }));
-const description = [
-  script.hook,
-  "",
-  "CHAPTERS:",
-  ...chapters.map((c) => `${c.t} ${c.title}`),
-  "",
-  `Subscribe to ${CH.brand}.`,
-  track ? `Music: ${track.title} - ${track.credit}` : "",
-].filter(Boolean).join("\n").slice(0, 4900);
 
 function etToUTC(y, mo, d, h, mi) {
   let ts = Date.UTC(y, mo - 1, d, h, mi);
@@ -298,13 +303,52 @@ function nextSlotET(hhmm) {
 }
 const publishAt = nextSlotET(CH.slotET);
 
+// SEO description: keyword inside the FIRST 125 chars (search snippet), then hook
+const hook1 = sentences(script.hook)[0] || script.hook;
+const description = [
+  `${keyword} explained - ${hook1}`,
+  "",
+  "CHAPTERS:",
+  ...chapters.map((c) => `${c.t} ${c.title}`),
+  "",
+  `Subscribe to ${CH.brand}.`,
+  track ? `Music: ${track.title} - ${track.credit}` : "",
+].filter(Boolean).join("\n").slice(0, 4900);
+
+// SRT captions from word timings (closed captions are indexed for search)
+const fmtSrt = (ms) => {
+  const h = String(Math.floor(ms / 3600000)).padStart(2, "0");
+  const m = String(Math.floor((ms % 3600000) / 60000)).padStart(2, "0");
+  const sec = String(Math.floor((ms % 60000) / 1000)).padStart(2, "0");
+  return `${h}:${m}:${sec},${String(ms % 1000).padStart(3, "0")}`;
+};
+let srt = "";
+let srtIdx = 0;
+for (const b of beats) {
+  const ws = b.words || [];
+  if (!ws.length) continue;
+  let cur = null;
+  const flush = () => {
+    if (!cur || !cur.words.length) return;
+    srtIdx += 1;
+    srt += `${srtIdx}\n${fmtSrt(b.startMs + cur.t0)} --> ${fmtSrt(b.startMs + cur.t1)}\n${cur.words.join(" ")}\n\n`;
+  };
+  for (const w of ws) {
+    if (!cur) { cur = { t0: w.t0, t1: w.t1, words: [w.w] }; continue; }
+    if (cur.words.length >= 8 || w.t1 - cur.t0 >= 3200) { flush(); cur = { t0: w.t0, t1: w.t1, words: [w.w] }; }
+    else { cur.t1 = w.t1; cur.words.push(w.w); }
+  }
+  flush();
+}
+const srtPath = path.join(EXPL, "out", `lf-srt-${SLUG}.srt`);
+fs.writeFileSync(srtPath, srt || "1\n00:00:00,000 --> 00:00:02,000\n " + String.fromCharCode(92) + "n");
 const meta = {
-  channel: SLUG, brand: CH.brand, title: script.title, description,
+  channel: SLUG, brand: CH.brand, title: String(bestTitle || script.title), keyword, description,
   tags: [nicheWords[0], "documentary", "stories", SLUG],
   publishAt, durationMs: totalMs,
   music: track ? { title: track.title, credit: track.credit } : null,
   persona: { query: topic.personaQuery || "", name: topic.personaName || "" },
-  videoFile: `lf-${SLUG}.mp4`, thumbFile: `lf-thumb-${SLUG}.jpg`,
+  videoFile: `lf-${SLUG}.mp4`, thumbFile: `lf-thumb-${SLUG}.jpg`, srtFile: `lf-srt-${SLUG}.srt`,
 };
 const metaPath = path.join(EXPL, "out", `lf-meta-${SLUG}.json`);
 fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));

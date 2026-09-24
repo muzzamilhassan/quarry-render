@@ -13,6 +13,9 @@ on:
   schedule:
     - cron: "0 18 * * *"
 
+permissions:
+  contents: write
+
 jobs:
   video:
     runs-on: ubuntu-latest

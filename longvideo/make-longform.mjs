@@ -29,10 +29,10 @@ try {
 } catch { /* CI injects secrets */ }
 
 const CHANNELS = {
-  "investors-compass": { theme: "investing", group: "TENSION", slotET: "19:00", voice: "en-US-AndrewNeural", brand: "INVESTOR'S COMPASS", eyebrow: "MARKET DOCUMENTARIES // IC", accent: "#E8C15A", bg: "#0B1220", niche: "stock market crashes, famous investors, investing disasters, market history" },
-  "money-rulebook": { theme: "vox", group: "CINEMATIC", slotET: "19:45", voice: "en-US-AndrewNeural", brand: "MONEY RULEBOOK", eyebrow: "BUSINESS STORIES // MR", accent: "#C1272D", bg: "#FAF5EE", niche: "business empires, famous companies, money scandals, billionaire rises and falls" },
-  "debt-free-doctrine": { theme: "poster", group: "TENSION", slotET: "20:30", voice: "en-US-GuyNeural", brand: "DEBT-FREE DOCTRINE", eyebrow: "DEBT STORIES // DFD", accent: "#FF3366", bg: "#0A0A0A", niche: "bankruptcies, debt traps, credit disasters, financial recovery stories" },
-  "quotequarry": { theme: "vox", group: "CINEMATIC", slotET: "21:15", voice: "en-US-AndrewNeural", brand: "QUOTE QUARRY", eyebrow: "WISE MINDS // QQ", accent: "#C1272D", bg: "#FAF5EE", niche: "stoic philosophers, famous minds, wisdom stories, life lessons" },
+  "investors-compass": { theme: "investing", group: "TENSION", slotET: "19:00", voice: "en-US-AndrewNeural", brand: "INVESTOR'S COMPASS", eyebrow: "MARKET DOCUMENTARIES // IC", accent: "#E8C15A", bg: "#0B1220", niche: "stock market crashes and panics, legendary investors, trading disasters, financial history", angles: ["market crash and panic", "legendary investor rise and fall", "trading disaster", "financial history mystery"] },
+  "money-rulebook": { theme: "vox", group: "CINEMATIC", slotET: "19:45", voice: "en-US-AndrewNeural", brand: "MONEY RULEBOOK", eyebrow: "BUSINESS STORIES // MR", accent: "#C1272D", bg: "#FAF5EE", niche: "companies and business empires: founders, rises and falls, frauds and scandals", angles: ["company rise and fall", "founder story", "business fraud and scandal", "empire-building deal"] },
+  "debt-free-doctrine": { theme: "poster", group: "TENSION", slotET: "20:30", voice: "en-US-GuyNeural", brand: "DEBT-FREE DOCTRINE", eyebrow: "DEBT STORIES // DFD", accent: "#FF3366", bg: "#0A0A0A", niche: "PERSONAL money disasters: credit card traps, loans, personal bankruptcy and debt-free comebacks (real people, NOT companies)", angles: ["personal debt trap", "credit score disaster", "loan shark and payday trap", "debt-free comeback story"] },
+  "quotequarry": { theme: "vox", group: "CINEMATIC", slotET: "21:15", voice: "en-US-AndrewNeural", brand: "QUOTE QUARRY", eyebrow: "WISE MINDS // QQ", accent: "#C1272D", bg: "#FAF5EE", niche: "stoic philosophers and timeless wisdom stories from history (NO money, investing or business topics)", angles: ["stoic philosopher life story", "timeless wisdom lesson from history", "famous mind and discipline", "ancient story with modern lesson"] },
 };
 const CH = CHANNELS[SLUG];
 if (!CH) { console.error("unknown channel " + SLUG); process.exit(1); }
@@ -49,10 +49,31 @@ const sentences = (text) => String(text).split(/(?<=[.!?])\s+/).map((x) => x.tri
 // ---------- 1. topic (AI, deduped against channel history) ----------
 const HIST = path.join(ROOT, "state", `longform-${SLUG}.json`);
 const history = (() => { try { return JSON.parse(fs.readFileSync(HIST, "utf8")); } catch { return []; } })();
-const recentTitles = history.slice(-25).map((h) => h.title);
+let recentTitles = history.slice(-25).map((h) => h.title);
+// CROSS-CHANNEL dedup: read the other channels' committed histories so two
+// channels can never tell the same story in the same week.
+const ALL_SLUGS = ["investors-compass", "money-rulebook", "debt-free-doctrine", "quotequarry"];
+const ghTok = process.env.GITHUB_TOKEN || process.env.GITHUB_PAT || "";
+const ghRepo = process.env.GH_REPO || "muzzamilhassan/quarry-render";
+if (ghTok) {
+  for (const other of ALL_SLUGS) {
+    if (other === SLUG) continue;
+    try {
+      const r = await fetch("https://api.github.com/repos/" + ghRepo + "/contents/state/longform-" + other + ".json", { headers: { Authorization: "Bearer " + ghTok, "User-Agent": "quarry-longform" } });
+      if (!r.ok) continue;
+      const j = await r.json();
+      const arr = JSON.parse(Buffer.from(j.content, "base64").toString("utf8"));
+      for (const h of arr.slice(-25)) if (h.title && !recentTitles.includes(h.title)) recentTitles.push(h.title);
+    } catch { }
+  }
+}
+recentTitles = recentTitles.slice(-100);
+console.log(`[topic] dedup list: ${recentTitles.length} recent titles (all channels)`);
 
+const ANGLE = (() => { const a = CH.angles || []; return a.length ? a[history.length % a.length] : ""; })();
 const TOPIC_SYS = `You plan documentary YouTube videos. Return ONLY JSON: {"title":"...","keyword":"...","titles":["5 title variants"],"thumbHeadline":"...","personaQuery":"...","personaName":"..."}.
-- "title": a documentary topic for this niche, a real story with real facts you know well: NICHE.
+- Pick ONE specific real story told from this angle: ANGLE.
+- STRICT NICHE (a story outside it is WRONG): NICHE.
 - "keyword": the main phrase people SEARCH on YouTube for this story (3-6 words, e.g. "stock market crash explained").
 - "titles": exactly 5 YouTube title variants using different formulas (number+outcome, curiosity gap, warning, contrarian, X vs Y). Max 70 chars each. One must contain the keyword.
 - "thumbHeadline": 3-5 punchy words for the thumbnail (max 22 chars), no punctuation except $ or numbers.
@@ -90,10 +111,44 @@ const groqTopic = () => aiJson(async () => {
   return parseJsonLoose(d.choices?.[0]?.message?.content || "");
 });
 
-console.log("[step] topic ...");
-let topic = await step("gemini-topic", geminiTopic)();
-if (!topic) topic = await step("groq-topic", groqTopic)();
-if (!topic || !topic.title) { topic = { title: "The Most Surprising Money Story Ever Told", thumbHeadline: "THE UNTOLD STORY", personaQuery: CH.niche.split(",")[0], personaName: "" }; }
+console.log("[step] topic (groq primary, gemini backup) ...");
+let topic = await step("groq-topic", groqTopic)();
+if (!topic) topic = await step("gemini-topic", geminiTopic)();
+const FALLBACK_TOPICS = {
+  "investors-compass": [
+    { title: "The 1987 Black Monday Crash", keyword: "black monday 1987 explained", thumbHeadline: "22% IN ONE DAY", personaQuery: "Black Monday 1987", personaName: "Black Monday 1987" },
+    { title: "How Nick Leeson Broke Barings Bank", keyword: "barings bank collapse explained", thumbHeadline: "THE BANK THAT DIED", personaQuery: "Nick Leeson", personaName: "Nick Leeson" },
+    { title: "Jesse Livermore: The Man Who Shorted 1929", keyword: "jesse livermore story", thumbHeadline: "$100 MILLION SHORTED", personaQuery: "Jesse Livermore", personaName: "Jesse Livermore" },
+    { title: "Madoff: The $65 Billion Ponzi Machine", keyword: "madoff ponzi scheme explained", thumbHeadline: "$65B PONZI", personaQuery: "Bernie Madoff", personaName: "Bernie Madoff" },
+    { title: "Tulip Mania: History's First Market Bubble", keyword: "tulip mania explained", thumbHeadline: "FLOWERS COST HOUSES", personaQuery: "Tulip mania", personaName: "Tulip Mania" },
+  ],
+  "money-rulebook": [
+    { title: "Kodak Invented the Digital Camera, Then Hid It", keyword: "kodak failure story", thumbHeadline: "THEY HID THE FUTURE", personaQuery: "Kodak", personaName: "Kodak" },
+    { title: "Blockbuster Could Have Bought Netflix", keyword: "blockbuster netflix story", thumbHeadline: "$50M THAT DIED", personaQuery: "Blockbuster LLC", personaName: "Blockbuster" },
+    { title: "WeWork: The $47 Billion Mirage", keyword: "wework collapse explained", thumbHeadline: "$47B TO ZERO", personaQuery: "Adam Neumann", personaName: "Adam Neumann" },
+    { title: "Nokia: The King That Slept", keyword: "nokia rise and fall", thumbHeadline: "KING TO FORGOTTEN", personaQuery: "Nokia", personaName: "Nokia" },
+    { title: "The East India Company: History's First Mega-Corporation", keyword: "east india company history", thumbHeadline: "FIRST MEGA-CORP", personaQuery: "East India Company", personaName: "East India Company" },
+  ],
+  "debt-free-doctrine": [
+    { title: "The Credit Card Minimum Payment Trap", keyword: "credit card minimum payment trap", thumbHeadline: "30 YEARS OF DEBT", personaQuery: "credit cards", personaName: "Credit Cards" },
+    { title: "How Student Loans Swallowed a Generation", keyword: "student loan crisis explained", thumbHeadline: "$1.7T TRAP", personaQuery: "Student debt", personaName: "Student Loans" },
+    { title: "Payday Loans: The Legal Loan Sharks", keyword: "payday loan trap explained", thumbHeadline: "400% INTEREST", personaQuery: "Payday loan", personaName: "Payday Loans" },
+    { title: "The Lottery Curse: Winners Who Lost Everything", keyword: "lottery winners who went broke", thumbHeadline: "WINNERS TO BROKE", personaQuery: "Lottery winner", personaName: "Lottery Winners" },
+    { title: "From Sleeping in His Car to Debt-Free Millionaire", keyword: "debt free comeback story", thumbHeadline: "CAR TO MILLIONS", personaQuery: "homeless entrepreneur", personaName: "Comeback Story" },
+  ],
+  "quotequarry": [
+    { title: "Seneca: The Richest Stoic and His Hardest Lesson", keyword: "seneca stoicism story", thumbHeadline: "THE RICHEST STOIC", personaQuery: "Seneca the Younger", personaName: "Seneca" },
+    { title: "Epictetus: From Slave to Philosophy Master", keyword: "epictetus life story", thumbHeadline: "BORN A SLAVE", personaQuery: "Epictetus", personaName: "Epictetus" },
+    { title: "Cato: Rome's Last Honest Man", keyword: "cato the younger story", thumbHeadline: "ROME'S HONEST MAN", personaQuery: "Cato the Younger", personaName: "Cato" },
+    { title: "Diogenes: The Man Who Mocked an Empire", keyword: "diogenes philosophy story", thumbHeadline: "THE BARREL PHILOSOPHER", personaQuery: "Diogenes of Sinope", personaName: "Diogenes" },
+    { title: "Viktor Frankl: Finding Meaning Inside Hell", keyword: "viktor frankl story", thumbHeadline: "MEANING IN HELL", personaQuery: "Viktor Frankl", personaName: "Viktor Frankl" },
+  ],
+};
+if (!topic || !topic.title) {
+  const fbList = FALLBACK_TOPICS[SLUG] || [];
+  topic = fbList[history.length % fbList.length];
+  console.log(`[topic] AI failed - on-niche fallback: "${topic.title}"`);
+}
 const keyword = String(topic.keyword || CH.niche.split(",")[0]).trim();
 const titles5 = Array.isArray(topic.titles) ? topic.titles.filter(Boolean) : [];
 const scoreTitle = (t) => {

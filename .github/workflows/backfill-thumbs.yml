@@ -33,6 +33,11 @@ jobs:
       - name: Install deps
         run: npm install googleapis puppeteer-core
 
+      - name: Install Chrome (poster renderer)
+        run: |
+          npx --yes @puppeteer/browsers install chrome@stable --path "$HOME/chrome-cache"
+          echo "CHROME_PATH=$(find "$HOME/chrome-cache" -name chrome -type f | head -1)" >> "$GITHUB_ENV"
+
       - name: Backfill thumbnails
         env:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}

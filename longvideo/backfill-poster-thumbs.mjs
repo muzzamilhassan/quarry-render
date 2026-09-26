@@ -100,7 +100,7 @@ async function processChannel(slug) {
   for (const v of longs) {
     const videoId = v.id;
     const title = v.snippet.title;
-    if (ledger[videoId]?.done) { skipped++; continue; }
+    if (ledger[videoId]?.done && !ledger[videoId].dry) { skipped++; continue; }
     try {
       const backup = await backupThumb(youtube, videoId);
       const out = path.join(ROOT, "thumbnails", "demos", `backfill-${videoId}.png`);
@@ -113,6 +113,7 @@ async function processChannel(slug) {
       }
       ledger[videoId] = { channel: slug, title, done: new Date().toISOString().slice(0, 10), dry: DRY || undefined, oldThumb: path.relative(ROOT, backup) };
       done++;
+      fs.rmSync(out, { force: true });
       console.log(`[ok ${done}] ${videoId}  "${title.slice(0, 60)}" (old thumb saved)`);
       fs.writeFileSync(LEDGER, JSON.stringify(ledger, null, 2));
     } catch (e) {

@@ -33,6 +33,11 @@ jobs:
           npm install googleapis puppeteer-core
           python3 -m pip install --quiet pillow || sudo apt-get install -y -qq python3-pil
 
+      - name: Install Chrome (poster thumbnails)
+        run: |
+          npx --yes @puppeteer/browsers install chrome@stable --path "$HOME/chrome-cache"
+          echo "CHROME_PATH=$(find "$HOME/chrome-cache" -name chrome -type f | head -1)" >> "$GITHUB_ENV"
+
       - name: Generate thumbnails + schedule uploads
         env:
           GH_TOKEN: ${{ github.token }}

@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { pickApprovedTrack } from "../music-engine.mjs";
+import { buildBeatmap } from "./beatmap.mjs";
 
 const DIR = import.meta.dirname;
 const ROOT = path.resolve(DIR, "..");
@@ -138,6 +139,16 @@ const tts = spawnSync(PY, [path.join(EXPL, "edge_batch.py"), inPath], { ...spawn
 if (tts.status !== 0) throw new Error("tts failed");
 const durs = JSON.parse(fs.readFileSync(path.join(audioDir, "tts-durations.json"), "utf8"));
 const byI = new Map(durs.map((d) => [d.i, d]));
+
+// narration beat-map: sentence boundaries from word timings — drives narration-ordered
+// reveals in tech-video.tsx. Null (no TTS timing) → renderers keep fixed-delay fallback.
+let beatmap = null;
+try {
+  beatmap = buildBeatmap(scenes, byI);
+  if (beatmap) console.log(`[beatmap] ${Object.keys(beatmap).length} scenes with sentence timing`);
+} catch (e) {
+  console.log(`[beatmap] failed (${String(e.message).slice(0, 60)}) — fixed-delay fallback`);
+}
 const buildWords = (ws) => (ws || []).map((w) => ({ w: w.w, t0: Math.round(w.s * 1000), t1: Math.round((w.s + w.d) * 1000) }));
 
 // ---------------- timing ----------------
@@ -183,6 +194,7 @@ const props = {
   scenes,
   starts,
   durs: dursArr,
+  beatmap,
   fps: MINUTES >= 5 ? 24 : 30,
   sceneWords: scenes.map((s, i) => buildWords(byI.get(i)?.words)),
   sceneAudio,

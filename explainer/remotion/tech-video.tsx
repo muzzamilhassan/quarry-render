@@ -32,6 +32,38 @@ const loadFonts = () => {
 
 const glow = (color: string, strength = 0.45) => ({ boxShadow: `0 0 24px ${color}${Math.round(strength * 255).toString(16).padStart(2, "0")}, 0 0 60px ${color}22`, borderColor: `${color}66` });
 
+// ---- narration choreography (beat-map driven, CloudXBerry-style reveals) ----
+// beat = per-scene { sentences: [{id,t0,t1,text}], words } built by longvideo/beatmap.mjs
+// from edge-tts word boundaries. null → every renderer falls back to legacy fixed delays.
+type Sentence = { id: number; t0: number; t1: number; text: string };
+type Beat = { sentences: Sentence[]; words: Array<{ w: string; t0: number; t1: number }> } | null;
+
+// SECOND at which element i of n should enter: the start of the sentence nearest
+// fraction i/n through the scene's narration span. null when no beat data.
+const revealAt = (beat: Beat, i: number, n: number): number | null => {
+  const sents = beat?.sentences;
+  if (!sents || !sents.length) return null;
+  const frac = n <= 1 ? 0 : i / (n - 1);
+  const spanT0 = sents[0].t0, spanT1 = sents[sents.length - 1].t1;
+  const target = spanT0 + frac * (spanT1 - spanT0);
+  let best = sents[0];
+  for (const s of sents) if (Math.abs(s.t0 - target) < Math.abs(best.t0 - target)) best = s;
+  return best.t0 / 1000;
+};
+
+// how many sentences have FINISHED being spoken at ms — drives odometer counters
+const sentencesDone = (beat: Beat, ms: number): number | null => {
+  const sents = beat?.sentences;
+  if (!sents || !sents.length) return null;
+  return sents.filter((s) => ms >= s.t1).length;
+};
+
+const useMs = () => {
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  return (f / fps) * 1000;
+};
+
 const SceneLabel: React.FC<{ text: string }> = ({ text }) => (
   <div style={{ position: "absolute", top: 0, left: 0, right: 0, paddingTop: 100, fontFamily: MONO, fontSize: 24, color: DIM, letterSpacing: "0.3em", textAlign: "center" }}>{text}</div>
 );
@@ -81,9 +113,10 @@ const CodeTyping: React.FC<{ text: string; start?: number; speed?: number; color
   );
 };
 
-const Counter: React.FC<{ values: number[]; start?: number; step?: number; color?: string; size?: number }> = ({ values, start = 0, step = 24, color = CYAN, size = 64 }) => {
+const Counter: React.FC<{ values: number[]; start?: number; step?: number; color?: string; size?: number; idxOverride?: number | null }> = ({ values, start = 0, step = 24, color = CYAN, size = 64, idxOverride = null }) => {
   const f = useCurrentFrame();
-  const idx = Math.min(values.length - 1, Math.max(0, Math.floor((f - start) / step)));
+  const legacy = Math.min(values.length - 1, Math.max(0, Math.floor((f - start) / step)));
+  const idx = idxOverride != null ? Math.min(values.length - 1, Math.max(0, idxOverride)) : legacy;
   const tickP = interpolate(f - start - idx * step, [0, 8], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   return (
     <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: size, color, textAlign: "center" }}>
@@ -161,37 +194,50 @@ const UuidGrid: React.FC<{ delay: number; color?: string }> = ({ delay, color = 
 const STitle: React.FC<{ s: any }> = ({ s }) => <BigCenter headline={s.headline} sub={s.sub} />;
 const SEnd: React.FC<{ s: any }> = ({ s }) => <BigCenter headline={s.headline} sub={s.sub} accent={GREEN} />;
 
-const STerminal: React.FC<{ s: any; accent: string }> = ({ s, accent }) => {
+const STerminal: React.FC<{ s: any; accent: string; beat?: Beat }> = ({ s, accent, beat }) => {
   const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
   const lines: string[] = s.lines || [];
   const per = 26;
   return (
     <>
       {s.label ? <SceneLabel text={s.label} /> : null}
       <Terminal title={s.termTitle || "terminal"} w={s.wide ? 1180 : 900} color={accent} delay={2} style={{ left: s.wide ? 370 : 510, top: 300 }}>
-        {lines.map((ln, i) => (
-          <div key={i} style={{ marginBottom: 16 }}>
-            <CodeTyping text={ln} start={8 + i * per} speed={2.0} color={i % 2 === 0 ? GREEN : PURPLE} size={s.wide ? 28 : 26} />
-          </div>
-        ))}
+        {lines.map((ln, i) => {
+          const st = revealAt(beat, i, lines.length + 1); // +1 keeps the last slot for the caption
+          const startF = st != null ? Math.round(st * fps) : 8 + i * per;
+          return (
+            <div key={i} style={{ marginBottom: 16 }}>
+              <CodeTyping text={ln} start={startF} speed={2.0} color={i % 2 === 0 ? GREEN : PURPLE} size={s.wide ? 28 : 26} />
+            </div>
+          );
+        })}
       </Terminal>
-      {s.caption ? (
-        <div style={{ position: "absolute", top: 700 + lines.length * 44, left: 0, right: 0, textAlign: "center", fontFamily: MONO, fontSize: 28, color: DIM, opacity: f > 8 + lines.length * per ? 1 : 0 }}>
-          {s.caption}
-        </div>
-      ) : null}
+      {s.caption ? (() => {
+        const lastEnd = beat?.sentences?.length ? beat.sentences[beat.sentences.length - 1].t1 / 1000 : null;
+        const capAt = lastEnd != null ? lastEnd * fps + 6 : 8 + lines.length * per;
+        return (
+          <div style={{ position: "absolute", top: 700 + lines.length * 44, left: 0, right: 0, textAlign: "center", fontFamily: MONO, fontSize: 28, color: DIM, opacity: f > capAt ? 1 : 0 }}>
+            {s.caption}
+          </div>
+        );
+      })() : null}
     </>
   );
 };
 
-const SCounter: React.FC<{ s: any; accent: string }> = ({ s, accent }) => (
-  <>
-    {s.label ? <SceneLabel text={s.label} /> : null}
-    <DatabaseNodeWrap title={s.nodeTitle || "database"} sub={s.sub} color={accent} x={700} y={280} delay={2}>
-      <Counter values={s.values && s.values.length ? s.values : [1, 2, 3]} start={20} step={26} color={accent} />
-    </DatabaseNodeWrap>
-  </>
-);
+const SCounter: React.FC<{ s: any; accent: string; beat?: Beat }> = ({ s, accent, beat }) => {
+  const ms = useMs();
+  const done = sentencesDone(beat, ms); // one tick per finished sentence — the counter obeys the voice
+  return (
+    <>
+      {s.label ? <SceneLabel text={s.label} /> : null}
+      <DatabaseNodeWrap title={s.nodeTitle || "database"} sub={s.sub} color={accent} x={700} y={280} delay={2}>
+        <Counter values={s.values && s.values.length ? s.values : [1, 2, 3]} start={20} step={26} color={accent} idxOverride={done} />
+      </DatabaseNodeWrap>
+    </>
+  );
+};
 
 const DatabaseNodeWrap: React.FC<{ title: string; sub?: string; color: string; x: number; y: number; delay?: number; children?: React.ReactNode }> = ({ title, sub, color, x, y, delay, children }) => (
   <Terminal title={title} w={520} color={color} delay={delay} style={{ left: x, top: y }}>
@@ -200,16 +246,18 @@ const DatabaseNodeWrap: React.FC<{ title: string; sub?: string; color: string; x
   </Terminal>
 );
 
-const SBars: React.FC<{ s: any; accent: string }> = ({ s, accent }) => {
+const SBars: React.FC<{ s: any; accent: string; beat?: Beat }> = ({ s, accent, beat }) => {
+  const { fps } = useVideoConfig();
   const bars = (s.bars || []).slice(0, 4);
   const max = Math.max(...bars.map((b: any) => Number(b.v) || 1), 1);
   return (
     <>
       {s.label ? <SceneLabel text={s.label} /> : null}
       <div style={{ position: "absolute", top: 240, left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
-        {bars.map((b: any, i: number) => (
-          <SizeBar key={i} label={b.label} v={Number(b.v) || 1} max={max} color={ACCENTS[i % ACCENTS.length]} delay={8 + i * 12} text={b.text} />
-        ))}
+        {bars.map((b: any, i: number) => {
+          const st = revealAt(beat, i, bars.length);
+          return <SizeBar key={i} label={b.label} v={Number(b.v) || 1} max={max} color={ACCENTS[i % ACCENTS.length]} delay={st != null ? st * fps : 8 + i * 12} text={b.text} />;
+        })}
       </div>
       {s.caption ? (
         <div style={{ position: "absolute", top: 640, left: 300, right: 300, textAlign: "center", fontFamily: MONO, fontSize: 28, color: DIM }}>{s.caption}</div>
@@ -221,30 +269,38 @@ const SBars: React.FC<{ s: any; accent: string }> = ({ s, accent }) => {
   );
 };
 
-const SClash: React.FC<{ s: any; accent: string }> = ({ s }) => {
+const SClash: React.FC<{ s: any; accent: string; beat?: Beat }> = ({ s, beat }) => {
+  const { fps } = useVideoConfig();
   const val = s.value ?? 1001;
+  const at = (k: number, legacy: number) => {
+    const st = revealAt(beat, k, 4);
+    return st != null ? Math.round(st * fps) : legacy;
+  };
   return (
     <>
       {s.label ? <SceneLabel text={s.label} /> : null}
       <div style={{ position: "absolute", top: 330, left: 230 }}>
-        <Terminal title={s.a || "node-A"} w={520} color={CYAN} delay={4}>
+        <Terminal title={s.a || "node-A"} w={520} color={CYAN} delay={at(0, 4)}>
           <Counter values={[val]} start={20} step={20} color={CYAN} />
         </Terminal>
       </div>
       <div style={{ position: "absolute", top: 330, left: 1170 }}>
-        <Terminal title={s.b || "node-B"} w={520} color={PURPLE} delay={16}>
+        <Terminal title={s.b || "node-B"} w={520} color={PURPLE} delay={at(1, 16)}>
           <Counter values={[val]} start={34} step={20} color={PURPLE} />
         </Terminal>
       </div>
-      <FlowLine x1={760} y1={480} x2={1160} y2={480} delay={46} color={RED} />
-      <WarnBadge text={s.warn || "COLLISION"} delay={54} />
+      <FlowLine x1={760} y1={480} x2={1160} y2={480} delay={at(2, 46)} color={RED} />
+      <WarnBadge text={s.warn || "COLLISION"} delay={at(3, 54)} />
     </>
   );
 };
 
-const SCode: React.FC<{ s: any; accent: string }> = ({ s, accent }) => {
+const SCode: React.FC<{ s: any; accent: string; beat?: Beat }> = ({ s, accent, beat }) => {
   const f = useCurrentFrame();
-  const chars = Math.max(0, Math.floor((f - 14) / 1.6));
+  const { fps } = useVideoConfig();
+  const st0 = revealAt(beat, 0, 1);
+  const startF = st0 != null ? Math.round(st0 * fps) : 14;
+  const chars = Math.max(0, Math.floor((f - startF) / 1.6));
   const big = String(s.big || "");
   return (
     <>
@@ -255,7 +311,7 @@ const SCode: React.FC<{ s: any; accent: string }> = ({ s, accent }) => {
         ))}
       </div>
       {s.caption ? (
-        <div style={{ position: "absolute", top: 330, left: 0, right: 0, textAlign: "center", fontFamily: MONO, fontSize: 27, color: accent, opacity: f > 12 + big.length / 1.6 ? 1 : 0 }}>
+        <div style={{ position: "absolute", top: 330, left: 0, right: 0, textAlign: "center", fontFamily: MONO, fontSize: 27, color: accent, opacity: f > startF + big.length / 1.6 ? 1 : 0 }}>
           {s.caption}
         </div>
       ) : null}
@@ -278,10 +334,10 @@ const SCode: React.FC<{ s: any; accent: string }> = ({ s, accent }) => {
 
 
 // ---------------- long-form diagram templates ----------------
-const MiniNode: React.FC<{ text: string; color: string; active: boolean; x: number; y: number; w?: number }> = ({ text, color, active, x, y, w = 380 }) => {
+const MiniNode: React.FC<{ text: string; color: string; active: boolean; x: number; y: number; w?: number; delay?: number }> = ({ text, color, active, x, y, w = 380, delay = 0 }) => {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const s = spring({ frame: f, fps, config: { damping: 12, stiffness: 160 } });
+  const s = spring({ frame: f - delay, fps, config: { damping: 12, stiffness: 160 } });
   return (
     <div style={{ position: "absolute", left: x, top: y, width: w, transform: `scale(${Math.max(s, 0.01)})`, transformOrigin: "center" }}>
       <div style={{ background: PANEL, border: `1.5px solid ${active ? color : "rgba(255,255,255,0.18)"}`, borderRadius: 14, padding: "22px 18px", textAlign: "center", fontFamily: MONO, fontWeight: 700, fontSize: 26, color: active ? "#000" : WHITE, background: active ? color : PANEL, boxShadow: active ? `0 0 30px ${color}88` : "none" }}>
@@ -291,20 +347,28 @@ const MiniNode: React.FC<{ text: string; color: string; active: boolean; x: numb
   );
 };
 
-const SFlow: React.FC<{ s: any; accent: string }> = ({ s, accent }) => {
+const SFlow: React.FC<{ s: any; accent: string; beat?: Beat }> = ({ s, accent, beat }) => {
   const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const ms = useMs();
   const nodes: string[] = (s.nodes || []).slice(0, 4);
   const n = nodes.length;
   const W = 1920;
   const boxW = n === 2 ? 460 : 380;
   const gap = (W - 200 - n * boxW) / Math.max(n - 1, 1);
-  const active = Math.floor(f / 45) % n;
+  // active node = the one being narrated RIGHT NOW (falls back to a time-cycled walk)
+  let active = Math.floor(f / 45) % n;
+  if (beat?.sentences?.length) {
+    const si = beat.sentences.findIndex((snt) => ms >= snt.t0 - 100 && ms < snt.t1 + 400);
+    if (si >= 0) active = Math.min(si, n - 1);
+  }
   return (
     <>
       {s.label ? <SceneLabel text={s.label} /> : null}
-      {nodes.map((txt, i) => (
-        <MiniNode key={i} text={txt} color={accent} active={i === active} x={100 + i * (boxW + gap)} y={380} w={boxW} />
-      ))}
+      {nodes.map((txt, i) => {
+        const st = revealAt(beat, i, n);
+        return <MiniNode key={i} text={txt} color={accent} active={i === active} x={100 + i * (boxW + gap)} y={380} w={boxW} delay={st != null ? Math.round(st * fps) : 0} />;
+      })}
       {nodes.slice(0, -1).map((_, i) => (
         <svg key={`a${i}`} width={gap + 20} height={40} style={{ position: "absolute", left: 100 + boxW + i * (boxW + gap) - 10, top: 455 }}>
           <line x1="0" y1="20" x2={gap - 8} y2="20" stroke={DIM} strokeWidth={3} strokeDasharray="8 8" />
@@ -326,7 +390,7 @@ const SFlow: React.FC<{ s: any; accent: string }> = ({ s, accent }) => {
   );
 };
 
-const SSteps: React.FC<{ s: any; accent: string }> = ({ s, accent }) => {
+const SSteps: React.FC<{ s: any; accent: string; beat?: Beat }> = ({ s, accent, beat }) => {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
   const items: string[] = (s.items || []).slice(0, 5);
@@ -335,7 +399,8 @@ const SSteps: React.FC<{ s: any; accent: string }> = ({ s, accent }) => {
       {s.label ? <SceneLabel text={s.label} /> : null}
       <div style={{ position: "absolute", top: 240, left: 420, right: 300 }}>
         {items.map((it, i) => {
-          const p = spring({ frame: f - 8 - i * 14, fps, config: { damping: 200 } });
+          const st = revealAt(beat, i, items.length);
+          const p = spring({ frame: f - (st != null ? Math.round(st * fps) : 8 + i * 14), fps, config: { damping: 200 } });
           return (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 30, marginBottom: 44, opacity: p, transform: `translateX(${(1 - p) * 60}px)` }}>
               <div style={{ minWidth: 64, height: 64, borderRadius: 14, background: `${accent}22`, border: `1.5px solid ${accent}`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontWeight: 700, fontSize: 30, color: accent, ...glow(accent, 0.3) }}>{i + 1}</div>
@@ -412,6 +477,20 @@ const Captions: React.FC<{ words: Array<{ w: string; t0: number; t1: number }>; 
   );
 };
 
+// polish: whole-scene scale-in on entry + soft fade at exit (reads as a crossfade
+// between statements — CloudXBerry transition feel). Captions stay outside the shell.
+const SceneShell: React.FC<{ dur: number; children: React.ReactNode }> = ({ dur, children }) => {
+  const f = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const inP = spring({ frame: f, fps, config: { damping: 200, stiffness: 120 } });
+  const out = interpolate(f, [Math.max(dur - 9, 1), dur - 1], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  return (
+    <AbsoluteFill style={{ transform: `scale(${0.94 + 0.06 * inP})`, opacity: Math.min(inP, out) }}>
+      {children}
+    </AbsoluteFill>
+  );
+};
+
 const RENDERERS: Record<string, React.FC<any>> = {
   title: STitle,
   terminal: STerminal,
@@ -434,16 +513,20 @@ export const TechVideo: React.FC<any> = (props) => {
   const starts: number[] = props?.starts || [];
   const durs: number[] = props?.durs || [];
   const words: Array<Array<{ w: string; t0: number; t1: number }>> = props?.sceneWords || [];
+  const beatmap: Record<string, Beat> | null = props?.beatmap || null;
   const audio: Array<string | null> = props?.sceneAudio || [];
   const MUSIC: string | null = props?.music || null;
   return (
     <AbsoluteFill style={{ background: BG }}>
       {scenes.map((s, i) => {
         const R = RENDERERS[s.t] || STitle;
-        const accent = ACCENTS[i % ACCENTS.length];
+        const accent = s.accent || ACCENTS[i % ACCENTS.length];
+        const beat: Beat = beatmap ? (beatmap[i] || null) : null;
         return (
           <Sequence key={`s${i}`} from={u(starts[i] || 0)} durationInFrames={u(durs[i] || 4)}>
-            <R s={s} accent={accent} />
+            <SceneShell dur={u(durs[i] || 4)}>
+              <R s={s} accent={accent} beat={beat} />
+            </SceneShell>
             <Captions words={words[i] || []} accent={accent} />
           </Sequence>
         );

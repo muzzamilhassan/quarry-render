@@ -3,6 +3,7 @@
   "private": true,
   "description": "Public render + upload pipeline (free Actions minutes). Upload deps live here; video render deps live in explainer/.",
   "dependencies": {
-    "googleapis": "^144.0.0"
+    "googleapis": "^144.0.0",
+    "puppeteer-core": "^25.12.0"
   }
 }

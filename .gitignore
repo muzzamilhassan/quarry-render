@@ -1,2 +1,6 @@
 explainer/public/tech-audio/
 explainer/public/lf-audio/
+node_modules/
+package-lock.json
+.env
+yt-mcp/channels/*/token.json

@@ -83,6 +83,17 @@ function channelAuth(slug) {
   return a;
 }
 
+// ---- poster thumbnail (How-Dev-Works photo-poster style — user pick 09-26) ----
+const POSTER_KEY = { "investors-compass": "ic", "money-rulebook": "mr", "debt-free-doctrine": "dfd", "quotequarry": "qq" };
+function buildPoster(slug, meta) {
+  const key = POSTER_KEY[slug] || "ic";
+  const out = path.join(THUMB_DIR, "demos", `poster-${slug}.png`);
+  const r = spawnSync("node", [path.join(THUMB_DIR, "poster-factory.mjs"), "--channel", key, "--title", String(meta.title || ""), "--out", out], { encoding: "utf8" });
+  if (r.status !== 0 || !fs.existsSync(out)) throw new Error(String(r.stderr || r.stdout || "render failed").slice(-140));
+  console.log(`[thumb] poster style for ${slug}: "${String(meta.title || "").slice(0, 60)}"`);
+  return out;
+}
+
 // ---- documentary thumbnail generation (approved style, see thumbnails/gen-doc-thumbnail.py) ----
 const THUMB_DIR = path.join(ROOT, "thumbnails");
 
@@ -190,7 +201,10 @@ async function processChannel(slug) {
   let thumbFile = path.join(inbox, meta.thumbFile);
   if (!fs.existsSync(videoFile)) throw new Error("video missing in artifact");
   try {
-    const gen = await buildThumbnail(slug, meta);
+    let gen = null;
+    try { gen = buildPoster(slug, meta); }
+    catch (e) { console.log(`[warn] poster thumbnail failed (${String(e.message).slice(0, 90)}) — trying doc style`); }
+    if (!gen) gen = await buildThumbnail(slug, meta);
     if (gen) thumbFile = gen;
   } catch (e) {
     console.log(`[warn] style thumbnail skipped (${String(e.message).slice(0, 90)}) — using render thumbnail`);

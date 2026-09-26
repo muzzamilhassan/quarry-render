@@ -1,0 +1,60 @@
+# One-off migration: poster-style thumbnails for ALL existing long-form videos.
+# Dry run first (default) — lists what would change, touches nothing.
+# Then dispatch with mode=apply. Old thumbnails are backed up to
+# state/thumb-backup/ before each overwrite. Safe to re-run (idempotent ledger).
+name: Poster Thumbnail Backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "dry = list only, apply = update thumbnails"
+        required: false
+        default: "dry"
+      channel:
+        description: "one channel only (blank = all 4)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install deps
+        run: npm install googleapis puppeteer-core
+
+      - name: Backfill thumbnails
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YT_TOKEN_INVESTORS_COMPASS: ${{ secrets.YT_TOKEN_INVESTORS_COMPASS }}
+          YT_TOKEN_MONEY_RULEBOOK: ${{ secrets.YT_TOKEN_MONEY_RULEBOOK }}
+          YT_TOKEN_DEBT_FREE_DOCTRINE: ${{ secrets.YT_TOKEN_DEBT_FREE_DOCTRINE }}
+          YT_TOKEN_QUOTEQUARRY: ${{ secrets.YT_TOKEN_QUOTEQUARRY }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.channel }}" ]; then ARGS="$ARGS --channel ${{ inputs.channel }}"; fi
+          if [ "${{ inputs.mode }}" = "apply" ]; then ARGS="$ARGS"; else ARGS="$ARGS --dry"; fi
+          node longvideo/backfill-poster-thumbs.mjs $ARGS
+
+      - name: Save ledger + backups
+        run: |
+          if [ -f state/poster-backfill.json ]; then
+            git config user.name "longform-bot"
+            git config user.email "bot@users.noreply.github.com"
+            git add state/poster-backfill.json state/thumb-backup/ || true
+            git commit -m "poster thumbnail backfill (${{ inputs.mode }}) [skip ci]" || true
+            git pull --rebase -q origin main || true
+            git push origin HEAD:main || true
+          fi

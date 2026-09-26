@@ -137,7 +137,28 @@ const VOICE = vIdx > 0 ? process.argv[vIdx + 1] : "en-US-AndrewNeural";
 const RATE = MINUTES >= 5 ? "+0%" : "+4%";
 const tts = spawnSync(PY, [path.join(EXPL, "edge_batch.py"), inPath], { ...spawnOpts, env: { ...process.env, EXPLAINER_VOICE: VOICE, EXPLAINER_RATE: RATE } });
 if (tts.status !== 0) throw new Error("tts failed");
-const durs = JSON.parse(fs.readFileSync(path.join(audioDir, "tts-durations.json"), "utf8"));
+// TTS hardening: a silent-placeholder beat = a scene with no voice, no captions, no timing.
+// Retry pass = delete failed beats' mp3 (edge_batch resume-skips good ones) + re-run; a beat
+// that EVER produced word boundaries is good even if a later pass resume-caches it (words:[]).
+const durPath = path.join(audioDir, "tts-durations.json");
+const spokenIdx = new Set(spoken.map((s) => s.i));
+const good = new Set();
+for (let pass = 0; pass < 3; pass++) {
+  const now = JSON.parse(fs.readFileSync(durPath, "utf8"));
+  for (const d of now) if (Array.isArray(d.words) && d.words.length) good.add(d.i);
+  const failed = [...spokenIdx].filter((i) => !good.has(i));
+  if (!failed.length) break;
+  console.log(`[tts] ${failed.length} silent beat(s) (${failed.join(",")}) — retry pass ${pass + 1}/3`);
+  for (const i of failed) {
+    const f = path.join(audioDir, "audio", `beat-${String(i).padStart(2, "0")}.mp3`);
+    if (fs.existsSync(f)) fs.rmSync(f, { force: true });
+  }
+  spawnSync(PY, [path.join(EXPL, "edge_batch.py"), inPath], { ...spawnOpts, env: { ...process.env, EXPLAINER_VOICE: VOICE, EXPLAINER_RATE: RATE } });
+}
+const durs = JSON.parse(fs.readFileSync(durPath, "utf8"));
+for (const d of durs) if (Array.isArray(d.words) && d.words.length) good.add(d.i);
+const stillSilent = [...spokenIdx].filter((i) => !good.has(i));
+if (stillSilent.length) throw new Error(`${stillSilent.length} TTS beat(s) silent after retries (${stillSilent.join(",")}) — failing render rather than shipping broken audio`);
 const byI = new Map(durs.map((d) => [d.i, d]));
 
 // narration beat-map: sentence boundaries from word timings — drives narration-ordered

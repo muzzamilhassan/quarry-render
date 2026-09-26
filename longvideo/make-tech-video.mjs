@@ -143,9 +143,13 @@ if (tts.status !== 0) throw new Error("tts failed");
 const durPath = path.join(audioDir, "tts-durations.json");
 const spokenIdx = new Set(spoken.map((s) => s.i));
 const good = new Set();
+const best = new Map(); // best-known record per beat: words from whichever pass produced them
 for (let pass = 0; pass < 3; pass++) {
   const now = JSON.parse(fs.readFileSync(durPath, "utf8"));
-  for (const d of now) if (Array.isArray(d.words) && d.words.length) good.add(d.i);
+  for (const d of now) {
+    if (Array.isArray(d.words) && d.words.length) { good.add(d.i); best.set(d.i, d); }
+    else if (!best.has(d.i)) best.set(d.i, d); // keep ms until words arrive
+  }
   const failed = [...spokenIdx].filter((i) => !good.has(i));
   if (!failed.length) break;
   console.log(`[tts] ${failed.length} silent beat(s) (${failed.join(",")}) — retry pass ${pass + 1}/3`);
@@ -155,8 +159,7 @@ for (let pass = 0; pass < 3; pass++) {
   }
   spawnSync(PY, [path.join(EXPL, "edge_batch.py"), inPath], { ...spawnOpts, env: { ...process.env, EXPLAINER_VOICE: VOICE, EXPLAINER_RATE: RATE } });
 }
-const durs = JSON.parse(fs.readFileSync(durPath, "utf8"));
-for (const d of durs) if (Array.isArray(d.words) && d.words.length) good.add(d.i);
+const durs = [...best.values()].sort((a, b) => a.i - b.i);
 const stillSilent = [...spokenIdx].filter((i) => !good.has(i));
 if (stillSilent.length) throw new Error(`${stillSilent.length} TTS beat(s) silent after retries (${stillSilent.join(",")}) — failing render rather than shipping broken audio`);
 const byI = new Map(durs.map((d) => [d.i, d]));

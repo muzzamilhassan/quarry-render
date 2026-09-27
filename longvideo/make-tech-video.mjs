@@ -56,7 +56,10 @@ Scene rules:
 - Every headline: max 46 chars, put EXACTLY ONE key term between *asterisks* (it renders in the accent color).
 - Use "rows" for endpoints/rules with a verdict tag; "sim" to show data flowing into a database (2-4 lines, start = believable id); "selector" to walk through 3-4 methods on one URL; "matrix" for resource×method grids (cell = one word); "compare" for two-option faceoffs; "showcase" only as an intro counting N items.
 - Keep old templates (steps/flow/bars/terminal/code/clash) for variety. 12-16 scenes total.
-- SCENE 1 MUST be {"t":"title"...} and the LAST scene MUST be {"t":"end"...}. EVERY middle scene — including chapter and showcase — needs "text" of 90-115 narration words.
+- SCENE 1 MUST be {"t":"title"...} and the LAST scene MUST be {"t":"end"...}.
+- "text" = 70-95 narration words on content scenes. EXCEPTION: "chapter" scenes are SHORT openers, 25-45 words.
+- DESIGN RULES (this is what makes it look premium): showcase items ALWAYS have an emoji icon + UPPERCASE label ≤14 chars. rows ALWAYS have pill + short path/text + tag, 3-4 rows. sim ALWAYS has 2-4 code lines, customers array, believable start id, and a foot. selector ALWAYS has url + 3-4 methods + matching statuses. compare panels have 2-3 lines each + a foot. rows/sim/compare/matrix get a short punchy "foot".
+- VARIETY: never use the same template twice in a row. Each chapter's main scene type must differ from the previous chapter's. Rotate through rows / sim / selector / matrix / compare across chapters.
 - "text" = narration. Teaching voice, direct, plain English, no em-dashes. Each 90-115 words.
 - Facts MUST be technically accurate for the topic. lines max 46 chars, max 2-3 per terminal.`
   : `You write scripts for "Dark Mode Minimalist Tech" explainer videos (60-100 seconds) in the style of modern coding channels.
@@ -116,7 +119,7 @@ const minWords = MINUTES >= 5 ? 60 : 20;
 const okShape = (s) => s && Array.isArray(s.scenes)
   && s.scenes.length >= (MINUTES >= 5 ? 11 : 6) && s.scenes.length <= 18
   && s.scenes[0]?.t === "title" && s.scenes[s.scenes.length - 1]?.t === "end"
-  && s.scenes.slice(1, -1).every((sc) => String(sc.text || "").split(/\s+/).filter(Boolean).length >= minWords)
+  && s.scenes.slice(1, -1).every((sc) => String(sc.text || "").split(/\s+/).filter(Boolean).length >= (sc.t === "chapter" ? 18 : minWords))
   && s.scenes.slice(1, -1).every((sc) => ["terminal", "counter", "bars", "clash", "code", "flow", "steps", "statement", "chapter", "rows", "sim", "selector", "matrix", "compare", "showcase"].includes(sc.t));
 // two full generation attempts (gemini then groq each); a script that parses but fails the
 // shape check counts as a failure — we retry rather than ship it

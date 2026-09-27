@@ -173,17 +173,35 @@ export const Callout: React.FC<{ x: number; y: number; label: string; accent: st
 
 // ---------------- scenes ----------------
 
-// chapter opener: big 0N + statement headline (their "One: design around resources")
+// chapter opener: big 0N + statement headline + a live decorative grid so the opener
+// never sits on an empty screen (chapter scenes are short by design — 25-45 words)
 export const SChapter: React.FC<{ s: any; accent: string; beat?: any }> = ({ s, accent }) => {
+  const f = useCurrentFrame();
+  const cells = Array.from({ length: 24 });
   return (
     <>
-      <div style={{ position: "absolute", top: 360, left: 220 }}>
+      <Headline headline={s.headline} accent={accent} />
+      <div style={{ position: "absolute", top: 320, left: 200 }}>
         <ChapterNum num={s.num || "01"} accent={accent} delay={4} />
-        <div style={{ marginTop: 18, fontFamily: MONO, fontWeight: 700, fontSize: 26, letterSpacing: "0.32em", color: WHITE, maxWidth: 420, lineHeight: 1.5 }}>
+        <div style={{ marginTop: 18, fontFamily: MONO, fontWeight: 700, fontSize: 26, letterSpacing: "0.32em", color: WHITE, maxWidth: 460, lineHeight: 1.5 }}>
           {String(s.headline || "").replace(/\*/g, "").toUpperCase()}
         </div>
       </div>
-      <Headline headline={s.headline} accent={accent} delay={10} />
+      <div style={{ position: "absolute", top: 320, right: 200, width: 620, display: "grid", gridTemplateColumns: "repeat(6, 92px)", gap: 12 }}>
+        {cells.map((_, i) => {
+          const on = interpolate(f - 10 - i * 2.2, [0, 10], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+          const wave = 0.55 + 0.45 * Math.sin((f + i * 9) / 14);
+          return (
+            <div key={i} style={{
+              height: 92, borderRadius: 12,
+              background: on ? `${accent}${Math.round(20 + 40 * wave).toString(16).padStart(2, "0")}` : "rgba(255,255,255,0.03)",
+              border: `1.5px solid ${on ? `${accent}77` : "rgba(255,255,255,0.08)"}`,
+              boxShadow: on ? `0 0 ${10 + 16 * wave}px ${accent}33` : "none",
+              opacity: on ? 0.5 + 0.5 * wave : 0.3,
+            }} />
+          );
+        })}
+      </div>
     </>
   );
 };
@@ -284,24 +302,25 @@ export const SSim: React.FC<{ s: any; accent: string; beat?: any }> = ({ s, acce
   })();
   const shown = Math.min(lines.length, Math.max(0, done));
   const seq = start + Math.max(0, shown - 1);
+  void fps;
   return (
     <>
       <Headline headline={s.headline} accent={accent} />
-      <Window title={s.service || "orders-service"} w={640} accent={accent} delay={4} style={{ left: 240, top: 280 }}>
+      <Window title={s.service || "orders-service"} w={760} accent={accent} delay={4} style={{ left: 170, top: 270 }}>
         {lines.map((ln, i) => {
           const at = enterAt(beat, i, lines.length, fps, 16 + i * 26);
           const chars = Math.max(0, Math.floor((f - at) * 1.5));
           return (
-            <div key={i} style={{ fontFamily: MONO, fontSize: 19, color: i % 2 ? ACCENT_MAP.gold : ACCENT_MAP.green, marginBottom: 14, whiteSpace: "nowrap" }}>
+            <div key={i} style={{ fontFamily: MONO, fontSize: 22, color: i % 2 ? ACCENT_MAP.gold : ACCENT_MAP.green, marginBottom: 18, whiteSpace: "nowrap" }}>
               {ln.slice(0, chars)}{chars < ln.length && chars > 0 ? <span style={{ color: DIM }}>▌</span> : null}
             </div>
           );
         })}
       </Window>
       <svg width={1920} height={1080} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-        <path d="M 900 500 L 1060 500" stroke={accent} strokeWidth={3.5} strokeLinecap="round" strokeDasharray="10 8" strokeDashoffset={-(f * 1.8)} opacity={shown > 0 ? 0.9 : 0.15} />
+        <path d="M 950 490 L 1010 490" stroke={accent} strokeWidth={3.5} strokeLinecap="round" strokeDasharray="10 8" strokeDashoffset={-(f * 1.8)} opacity={shown > 0 ? 0.9 : 0.15} />
       </svg>
-      <Window title={s.db || "cloudberry-db"} w={560} accent={accent} delay={12} style={{ left: 1060, top: 250 }}>
+      <Window title={s.db || "cloudberry-db"} w={640} accent={accent} delay={12} style={{ left: 1020, top: 240 }}>
         <div style={{ background: `${accent}1A`, border: `1.5px solid ${accent}55`, borderRadius: 12, padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span style={{ fontFamily: MONO, fontSize: 18, color: DIM }}>{s.seq || "id_seq"}</span>
           <Odometer value={seq} atFrame={8} accent={accent} size={58} />
@@ -390,31 +409,33 @@ export const SMatrix: React.FC<{ s: any; accent: string; beat?: any }> = ({ s, a
     <>
       <Headline headline={s.headline} accent={accent} />
       <div style={{ position: "absolute", top: 300, left: 240, right: 240 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 18 }}>
           <div style={{ width: 280 }} />
           {cols.map((c, k) => {
             const colOn = f >= colAt(k);
             return (
-              <div key={`h${k}`} style={{ flex: 1, textAlign: "center", opacity: colOn ? 1 : 0 }}>
-                <Pill text={c} accent={accent} small />
+              <div key={`h${k}`} style={{ flex: 1, textAlign: "center", opacity: colOn ? 1 : 0, transform: `scale(${colOn ? 1 : 0.8})` }}>
+                <Pill text={c} accent={accent} />
               </div>
             );
           })}
         </div>
         {rowNames.map((rn, r) => (
-          <div key={r} style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 16 }}>
-            <div style={{ width: 280, fontFamily: MONO, fontWeight: 700, fontSize: 26, color: WHITE, textAlign: "right" }}>{rn}</div>
+          <div key={r} style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 18 }}>
+            <div style={{ width: 280, fontFamily: MONO, fontWeight: 700, fontSize: 30, color: WHITE, textAlign: "right" }}>{rn}</div>
             {cols.map((c, k) => {
               const colOn = f >= colAt(k);
-              const cellOn = colOn && f >= cellsAt + (r * cols.length + k) * 6;
+              const cellOn = colOn && f >= cellsAt + (r * cols.length + k) * 5;
+              const isYes = String(s.cell || "").toUpperCase().includes("YES") || cellOn;
               return (
                 <div key={k} style={{
-                  flex: 1, textAlign: "center", fontFamily: MONO, fontWeight: 700, fontSize: 19, padding: "18px 0", borderRadius: 10,
-                  color: cellOn ? accent : "transparent",
-                  background: cellOn ? `${accent}14` : "rgba(255,255,255,0.03)",
-                  border: `1.5px solid ${colOn ? `${accent}55` : "rgba(255,255,255,0.07)"}`,
-                  opacity: colOn ? 1 : 0.25,
-                }}>{cell || "·"}</div>
+                  flex: 1, textAlign: "center", fontFamily: MONO, fontWeight: 700, fontSize: 26, padding: "22px 0", borderRadius: 12,
+                  color: cellOn ? (s.cellColor === "verdict" ? (isYes ? ACCENT_MAP.green : "#F87171") : accent) : "transparent",
+                  background: cellOn ? `${accent}1E` : "rgba(255,255,255,0.03)",
+                  border: `2px solid ${cellOn ? accent : "rgba(255,255,255,0.07)"}`,
+                  boxShadow: cellOn ? `0 0 18px ${accent}33` : "none",
+                  opacity: colOn ? 1 : 0.35,
+                }}>{cellOn ? (s.cell || "·") : "·"}</div>
               );
             })}
           </div>
@@ -435,7 +456,7 @@ export const SCompare: React.FC<{ s: any; accent: string; beat?: any }> = ({ s, 
   const linesL: string[] = L.lines || []; const linesR: string[] = R.lines || [];
   const total = Math.max(linesL.length, linesR.length, 1);
   const panel = (side: "l" | "r", title: string, lines: string[], x: number, col: string, base: number) => (
-    <Window title={title} w={700} accent={col} delay={base} style={{ left: x, top: 300 }}>
+    <Window title={title} w={760} accent={col} delay={base} style={{ left: x, top: 290 }}>
       {lines.map((ln, i) => {
         const at = enterAt(beat, Math.min(i * 2 + (side === "r" ? 1 : 0), total - 1), total * 2, fps, 14 + i * 22 + (side === "r" ? 10 : 0));
         const chars = Math.max(0, Math.floor((f - at) * 1.6));
@@ -450,8 +471,8 @@ export const SCompare: React.FC<{ s: any; accent: string; beat?: any }> = ({ s, 
   return (
     <>
       <Headline headline={s.headline} accent={accent} />
-      {panel("l", L.title || "LEFT", linesL, 200, WHITE, 4)}
-      {panel("r", R.title || "RIGHT", linesR, 1020, accent, 12)}
+      {panel("l", L.title || "LEFT", linesL, 170, WHITE, 4)}
+      {panel("r", R.title || "RIGHT", linesR, 990, accent, 12)}
       {s.foot ? (
         <div style={{ position: "absolute", top: 760, left: 0, right: 0, textAlign: "center", fontFamily: MONO, fontWeight: 700, fontSize: 30, color: accent }}>{s.foot}</div>
       ) : null}

@@ -99,7 +99,7 @@ function derive(title) {
     lines.length = 0;
   }
   if (!lines.length) { lines.push(words.join(' ').slice(0, 22)); }
-  return { lines, accentIdx: Math.min(idx, words.length - 1), chip: C.chip(main) };
+  return { lines, accentIdx: Math.min(idx, words.length - 1), chip: C.chip(main), words };
 }
 
 function withAccent(lines, accentIdx) {
@@ -177,6 +177,7 @@ const linesHtml = withAccent(d.lines, d.accentIdx);
 const size = d.lines.length >= 3 ? 96 : (d.lines.some(l => l.length > 14) ? 108 : 122);
 const chip = typeof arg('chip') === 'string' && arg('chip') ? arg('chip') : d.chip;
 const html = template({ img: imgPath, chip, eyebrow: C.name, linesHtml, size });
+const WORDS = d.words, ACCENT_IDX = d.accentIdx;
 
 // ---------- render ----------
 const chrome = [
@@ -194,7 +195,43 @@ const browser = await puppeteer.launch({ executablePath: chrome, headless: 'new'
 const page = await browser.newPage();
 await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 });
 await page.goto('file:///' + tmp.split(path.sep).join('/'), { waitUntil: 'load' });
-await page.evaluate(() => document.fonts.ready);
+// explicitly force-load the webfonts BEFORE measuring (fonts.ready alone can
+// resolve before the file:// font has started loading → wrong metrics)
+await page.evaluate(async () => {
+  try { await document.fonts.load('96px Anton'); await document.fonts.load('900 23px InterB'); } catch { }
+  await document.fonts.ready;
+});
+// exact-fit headline: measure REAL rendered word widths (DOM, not canvas) and
+// greedy-wrap so the browser never re-wraps into ragged orphan lines
+await page.evaluate((words, accentIdx) => {
+  const h1 = document.querySelector('h1');
+  const maxW = document.querySelector('.txt').clientWidth - 24; // safety margin: keeps the hard shadow clear of the brand mark
+  function measure(lineWords, size) {
+    const span = document.createElement('span');
+    span.style.cssText = `font-family:Anton;font-size:${size}px;letter-spacing:1px;white-space:nowrap;position:absolute;visibility:hidden;`;
+    span.textContent = lineWords.join(' ');
+    document.body.appendChild(span);
+    const w = span.offsetWidth;
+    span.remove();
+    return w;
+  }
+  function layout(size) {
+    const lines = []; let cur = [];
+    for (const w of words) {
+      const cand = [...cur, w];
+      if (measure(cand, size) <= maxW) cur = cand;
+      else { if (cur.length) lines.push(cur); cur = [w]; }
+    }
+    if (cur.length) lines.push(cur);
+    return lines;
+  }
+  let size = 132, lines = null;
+  for (; size >= 56; size -= 2) { const L = layout(size); if (L.length <= 3) { lines = L; break; } }
+  if (!lines) { size = 56; lines = layout(size); }
+  let n = 0;
+  h1.style.fontSize = size + 'px';
+  h1.innerHTML = lines.map(line => line.map(w => (n++ === accentIdx ? `<span>${w}</span>` : w)).join(' ')).join('<br>');
+}, WORDS, ACCENT_IDX);
 await new Promise(r => setTimeout(r, 200));
 await page.screenshot({ path: OUT });
 await browser.close();

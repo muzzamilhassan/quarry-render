@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { AbsoluteFill, Audio, Sequence, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig, continueRender, delayRender } from "remotion";
+import * as CXB from "./tech-scenes";
 
 // ============ TECH VIDEO — data-driven "Dark Mode Minimalist Tech" explainer ============
 // The AI fits any topic into a fixed vocabulary of scene templates:
@@ -502,6 +503,14 @@ const RENDERERS: Record<string, React.FC<any>> = {
   steps: SSteps,
   statement: SStatement,
   end: SEnd,
+  // CloudXBerry design kit (tech-scenes.tsx)
+  chapter: CXB.SChapter,
+  showcase: CXB.SShowcase,
+  rows: CXB.SRows,
+  sim: CXB.SSim,
+  selector: CXB.SSelector,
+  matrix: CXB.SMatrix,
+  compare: CXB.SCompare,
 };
 
 // ---------------- orchestrator ----------------
@@ -520,7 +529,7 @@ export const TechVideo: React.FC<any> = (props) => {
     <AbsoluteFill style={{ background: BG }}>
       {scenes.map((s, i) => {
         const R = RENDERERS[s.t] || STitle;
-        const accent = s.accent || ACCENTS[i % ACCENTS.length];
+        const accent = (s.accent && (CXB.ACCENT_MAP[s.accent] || s.accent)) || ACCENTS[i % ACCENTS.length];
         const beat: Beat = beatmap ? (beatmap[i] || null) : null;
         return (
           <Sequence key={`s${i}`} from={u(starts[i] || 0)} durationInFrames={u(durs[i] || 4)}>

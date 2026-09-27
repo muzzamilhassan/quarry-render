@@ -43,8 +43,19 @@ Return ONLY JSON: {"scenes":[ ... ]} using these scene templates:
 {"t":"clash","label":"SECTION — NAME","a":"node-A","b":"node-B","value":1001,"warn":"SHORT WARNING","text":"narration 90-115 words"}
 {"t":"code","label":"SECTION — NAME","big":"short reveal max 44 chars","caption":"why it matters","grid":false,"lines":["code line"],"text":"narration 90-115 words"}
 {"t":"end","headline":"Now it makes sense.","sub":"FOLLOW FOR MORE","text":""}
-Rules:
-- 12-16 scenes total. First = title, last = end. Mix the templates; use "flow" at least twice (it draws the animated diagram) and "steps" at least twice.
+Premium UI scene templates (PREFER these — they look like a real product being demoed):
+{"t":"chapter","num":"01","accent":"purple","headline":"One: design around *resources*","text":"..."}
+{"t":"rows","accent":"purple","headline":"A common *API mistake*","window":"api.cloudx.dev","rows":[{"pill":"GET","text":"/getUsers","tag":"VERB","ok":false},{"pill":"GET","text":"/users","tag":"RESOURCE","ok":true}],"text":"..."}
+{"t":"sim","accent":"purple","headline":"The database generates the *number*","db":"cloudberry-db","seq":"orders_id_seq","service":"orders-service","start":1021,"lines":["INSERT INTO orders (customer) VALUES ('mia');","INSERT INTO orders (customer) VALUES ('leo');"],"customers":["mia","leo"],"text":"..."}
+{"t":"selector","accent":"purple","headline":"One URL, every *method*","icon":"🛒","url":"/orders/ord_7f3a91","meta":"49.00","methods":["GET","POST","PUT","DELETE"],"statuses":["RETRIEVED","CREATED","REPLACED","DELETED"],"text":"..."}
+{"t":"matrix","accent":"purple","headline":"Resources plus *HTTP methods*","cols":["GET","POST","DELETE"],"rowNames":["/users","/orders","/products"],"cell":"READ","text":"..."}
+{"t":"compare","accent":"purple","headline":"Developers say use *UUIDs*","left":{"title":"AUTO INCREMENT","lines":["id BIGSERIAL PRIMARY KEY","1001"]},"right":{"title":"UUID","lines":["id UUID PRIMARY KEY","8f14e45f-ceea"]},"text":"..."}
+{"t":"showcase","accent":"purple","headline":"Eight *REST API* patterns","sub":"DESIGN PATTERNS","count":8,"items":[{"icon":"📦","label":"PAYLOADS"},{"icon":"🔗","label":"ROUTES"}],"text":"..."}
+Scene rules:
+- Each chapter opens with "chapter" (num = 01, 02, ... in order) and uses ONE accent per chapter from: purple, orange, gold, green, pink (rotate in order). Every scene of that chapter repeats the same accent.
+- Every headline: max 46 chars, put EXACTLY ONE key term between *asterisks* (it renders in the accent color).
+- Use "rows" for endpoints/rules with a verdict tag; "sim" to show data flowing into a database (2-4 lines, start = believable id); "selector" to walk through 3-4 methods on one URL; "matrix" for resource×method grids (cell = one word); "compare" for two-option faceoffs; "showcase" only as an intro counting N items.
+- Keep old templates (steps/flow/bars/terminal/code/clash) for variety. 12-16 scenes total. First = title, last = end.
 - "text" = narration. Teaching voice, direct, plain English, no em-dashes. Each 90-115 words.
 - Facts MUST be technically accurate for the topic. lines max 46 chars, max 2-3 per terminal.`
   : `You write scripts for "Dark Mode Minimalist Tech" explainer videos (60-100 seconds) in the style of modern coding channels.
@@ -117,7 +128,7 @@ const okShape = script && Array.isArray(script.scenes)
   && script.scenes.length >= (MINUTES >= 5 ? 11 : 6) && script.scenes.length <= 18
   && script.scenes[0]?.t === "title" && script.scenes[script.scenes.length - 1]?.t === "end"
   && script.scenes.slice(1, -1).every((s) => String(s.text || "").split(/\s+/).filter(Boolean).length >= minWords)
-  && script.scenes.slice(1, -1).every((s) => ["terminal", "counter", "bars", "clash", "code", "flow", "steps", "statement"].includes(s.t));
+  && script.scenes.slice(1, -1).every((s) => ["terminal", "counter", "bars", "clash", "code", "flow", "steps", "statement", "chapter", "rows", "sim", "selector", "matrix", "compare", "showcase"].includes(s.t));
 if (FORCE_FALLBACK || !okShape) {
   console.log(`[script] weak/invalid AI scenes — using built-in UUID fallback`);
   script = FALLBACK;

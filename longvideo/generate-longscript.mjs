@@ -52,10 +52,10 @@ async function gemini(prompt, maxTokens) {
   return text;
 }
 
-async function groq(model, prompt, maxTokens) {
+async function groq(model, prompt, maxTokens, keyName = "LONGVIDEO_GROQ_API_KEY") {
   const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.LONGVIDEO_GROQ_API_KEY}`, "User-Agent": "longvideo/1.0" },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env[keyName]}`, "User-Agent": "longvideo/1.0" },
     body: JSON.stringify({ model, messages: [{ role: "user", content: prompt }], temperature: 0.85, max_tokens: maxTokens }),
     signal: AbortSignal.timeout(120000),
   });
@@ -67,12 +67,40 @@ async function groq(model, prompt, maxTokens) {
   return text;
 }
 
-// fallback chain per call
+// Emergency fallback only: mistral free quota is often exhausted (persistent 429),
+// so brain() gives it a single shot with no retry.
+async function mistral(prompt, maxTokens) {
+  const r = await fetch("https://api.mistral.ai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.MISTRAL_API_KEY}`, "User-Agent": "longvideo/1.0" },
+    body: JSON.stringify({ model: "mistral-small-latest", messages: [{ role: "user", content: prompt }], temperature: 0.85, max_tokens: maxTokens }),
+    signal: AbortSignal.timeout(120000),
+  });
+  if (!r.ok) throw new Error(`mistral HTTP ${r.status}`);
+  const j = await r.json();
+  const text = j.choices?.[0]?.message?.content || "";
+  if (!text.trim()) throw new Error("mistral empty");
+  return text;
+}
+
+// fallback chain per call.
+// Provider status 2026-09-28: LONGVIDEO groq key OK, ALT groq key OK (separate
+// rate pool), mistral quota-exhausted (single shot), gemini key project-banned
+// by Google ("denied access") — kept last in case the key is ever replaced.
+// The two Groq keys failing TOGETHER caused the silent missed-video days
+// (Sep 25/26) because the only backup was the banned gemini key.
 async function brain(prompt, maxTokens = 4096) {
   const chain = [];
   if (process.env.LONGVIDEO_GROQ_API_KEY) {
-    chain.push(["groq-gpt-oss-120b", () => groq("openai/gpt-oss-120b", prompt, maxTokens)]);
-    chain.push(["groq-qwen3.8-27b", () => groq("qwen/qwen3.8-27b", prompt, maxTokens)]);
+    chain.push(["groq1-gpt-oss-120b", () => groq("openai/gpt-oss-120b", prompt, maxTokens, "LONGVIDEO_GROQ_API_KEY")]);
+    chain.push(["groq1-qwen3.8-27b", () => groq("qwen/qwen3.8-27b", prompt, maxTokens, "LONGVIDEO_GROQ_API_KEY")]);
+  }
+  if (process.env.GROQ_ALT_API_KEY) {
+    chain.push(["groq2-gpt-oss-120b", () => groq("openai/gpt-oss-120b", prompt, maxTokens, "GROQ_ALT_API_KEY")]);
+    chain.push(["groq2-qwen3.8-27b", () => groq("qwen/qwen3.8-27b", prompt, maxTokens, "GROQ_ALT_API_KEY")]);
+  }
+  if (process.env.MISTRAL_API_KEY) {
+    chain.push(["mistral-small", () => mistral(prompt, maxTokens)]);
   }
   if (process.env.LONGVIDEO_GEMINI_API_KEY) {
     chain.push(["gemini-flash-latest", () => gemini(prompt, maxTokens)]);
@@ -88,8 +116,13 @@ async function brain(prompt, maxTokens = 4096) {
         return out;
       } catch (e) {
         lastErr = e;
-        console.log(`  [brain] ${name} attempt ${attempt} failed: ${String(e.message).slice(0, 90)}`);
-        await sleep(1500 * attempt);
+        const msg = String(e.message);
+        const is429 = /429|rate/i.test(msg);
+        // RPM limits reset per minute: only a long wait actually clears them.
+        // Short wait for anything else (dead key, 5xx) so we move on fast.
+        const waitS = is429 ? attempt * 45 : 3 * attempt;
+        console.log(`  [brain] ${name} attempt ${attempt} failed: ${msg.slice(0, 90)} (retry in ${waitS}s)`);
+        await sleep(waitS * 1000);
       }
     }
   }
@@ -160,7 +193,7 @@ async function main() {
       catch (e) {
         console.log(`  [ch] attempt ${a + 1} failed: ${String(e.message).slice(0, 90)}`);
         if (a === 2) throw new Error(`chapter ${i + 1} unrecoverable`);
-        await sleep(2000);
+        await sleep(20000); // give rate-limit windows time to clear before a full chain retry
       }
     }
   }
@@ -170,7 +203,7 @@ async function main() {
   const doc = {
     topic: TOPIC, brand: BRAND, minutes: MINUTES, musicTrack: MUSIC, keyword: KEYWORD, generatedAt: new Date().toISOString(),
     title: outline.title, hook: outline.hook, promise: outline.promise, chapters,
-    stats: { totalWords, estMinutes: +estMinutes.toFixed(1), providers: "groq-gpt-oss-120b -> groq-qwen3.8-27b" },
+    stats: { totalWords, estMinutes: +estMinutes.toFixed(1), providers: "groq1-gpt-oss-120b -> groq1-qwen3.8-27b -> groq2-gpt-oss-120b -> groq2-qwen3.8-27b -> mistral-small -> gemini-flash-latest" },
   };
   fs.writeFileSync(path.join(OUT_DIR, "script.json"), JSON.stringify(doc, null, 2));
   const txt = [`TITLE: ${outline.title}`, "", `HOOK: ${outline.hook}`, "", `PROMISE: ${outline.promise}`, "",

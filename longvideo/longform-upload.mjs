@@ -84,11 +84,19 @@ function channelAuth(slug) {
 }
 
 // ---- poster thumbnail (How-Dev-Works photo-poster style — user pick 09-26) ----
+// Photo relevance: per-topic Wikipedia/Pexels photo when possible, pool only as
+// last resort with no-repeat rotation (see poster-photo.mjs).
+import { resolvePosterPhoto } from "./poster-photo.mjs";
 const POSTER_KEY = { "investors-compass": "ic", "money-rulebook": "mr", "debt-free-doctrine": "dfd", "quotequarry": "qq" };
-function buildPoster(slug, meta) {
+async function buildPoster(slug, meta) {
   const key = POSTER_KEY[slug] || "ic";
   const out = path.join(THUMB_DIR, "demos", `poster-${slug}.png`);
-  const r = spawnSync("node", [path.join(THUMB_DIR, "poster-factory.mjs"), "--channel", key, "--title", String(meta.title || ""), "--out", out], { encoding: "utf8" });
+  const args = [path.join(THUMB_DIR, "poster-factory.mjs"), "--channel", key, "--title", String(meta.title || ""), "--out", out];
+  try {
+    const photo = await resolvePosterPhoto({ root: ROOT, slugKey: key, title: String(meta.title || ""), tags: meta.tags || [], thumbSubject: meta.thumbSubject, pexelsKey: process.env.PEXELS_API_KEY });
+    if (photo) { args.push("--photo", photo.path); console.log(`[thumb] subject photo: ${photo.source}`); }
+  } catch (e) { console.log(`[warn] subject photo failed (${String(e.message).slice(0, 60)}) — using pool`); }
+  const r = spawnSync("node", args, { encoding: "utf8" });
   if (r.status !== 0 || !fs.existsSync(out)) throw new Error(String(r.stderr || r.stdout || "render failed").slice(-140));
   console.log(`[thumb] poster style for ${slug}: "${String(meta.title || "").slice(0, 60)}"`);
   return out;
@@ -202,7 +210,7 @@ async function processChannel(slug) {
   if (!fs.existsSync(videoFile)) throw new Error("video missing in artifact");
   try {
     let gen = null;
-    try { gen = buildPoster(slug, meta); }
+    try { gen = await buildPoster(slug, meta); }
     catch (e) { console.log(`[warn] poster thumbnail failed (${String(e.message).slice(0, 90)}) — trying doc style`); }
     if (!gen) gen = await buildThumbnail(slug, meta);
     if (gen) thumbFile = gen;

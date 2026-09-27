@@ -47,6 +47,7 @@ jobs:
           YT_TOKEN_MONEY_RULEBOOK: ${{ secrets.YT_TOKEN_MONEY_RULEBOOK }}
           YT_TOKEN_DEBT_FREE_DOCTRINE: ${{ secrets.YT_TOKEN_DEBT_FREE_DOCTRINE }}
           YT_TOKEN_QUOTEQUARRY: ${{ secrets.YT_TOKEN_QUOTEQUARRY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: node longvideo/longform-upload.mjs ${{ inputs.channel != '' && format('--channel {0}', inputs.channel) || '' }}
 

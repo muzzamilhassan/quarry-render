@@ -11,6 +11,10 @@ on:
         description: "dry = list only, apply = update thumbnails"
         required: false
         default: "dry"
+      force:
+        description: "true = re-do videos even if already backfilled"
+        required: false
+        default: "false"
       channel:
         description: "one channel only (blank = all 4)"
         required: false
@@ -46,11 +50,13 @@ jobs:
           YT_TOKEN_MONEY_RULEBOOK: ${{ secrets.YT_TOKEN_MONEY_RULEBOOK }}
           YT_TOKEN_DEBT_FREE_DOCTRINE: ${{ secrets.YT_TOKEN_DEBT_FREE_DOCTRINE }}
           YT_TOKEN_QUOTEQUARRY: ${{ secrets.YT_TOKEN_QUOTEQUARRY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
           ARGS=""
           if [ -n "${{ inputs.channel }}" ]; then ARGS="$ARGS --channel ${{ inputs.channel }}"; fi
           if [ "${{ inputs.mode }}" = "apply" ]; then ARGS="$ARGS"; else ARGS="$ARGS --dry"; fi
+          if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
           node longvideo/backfill-poster-thumbs.mjs $ARGS
 
       - name: Save ledger + backups

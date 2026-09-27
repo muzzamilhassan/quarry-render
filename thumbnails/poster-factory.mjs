@@ -126,9 +126,9 @@ ${FONT_CSS}
 .photo{position:absolute;inset:0;background:url('file:///${img.split(path.sep).join('/')}') center/cover no-repeat;
   filter:contrast(1.07) saturate(1.08) brightness(0.92);}
 .shade{position:absolute;inset:0;background:
-  linear-gradient(76deg, rgba(${C.shade},0.96) 0%, rgba(${C.shade},0.86) 30%, rgba(${C.shade},0.42) 58%, rgba(${C.shade},0.10) 78%, rgba(${C.shade},0.30) 100%),
-  linear-gradient(0deg, rgba(${C.shade},0.88) 0%, rgba(${C.shade},0.25) 30%, rgba(${C.shade},0) 55%),
-  linear-gradient(180deg, rgba(${C.shade},0.55) 0%, rgba(${C.shade},0) 22%);}
+  linear-gradient(76deg, rgba(${C.shade},0.97) 0%, rgba(${C.shade},0.93) 34%, rgba(${C.shade},0.58) 60%, rgba(${C.shade},0.18) 80%, rgba(${C.shade},0.34) 100%),
+  linear-gradient(0deg, rgba(${C.shade},0.90) 0%, rgba(${C.shade},0.30) 32%, rgba(${C.shade},0) 56%),
+  linear-gradient(180deg, rgba(${C.shade},0.60) 0%, rgba(${C.shade},0) 24%);}
 .glowedge{position:absolute;left:0;top:0;bottom:0;width:10px;background:linear-gradient(180deg,${C.edge[0]},${C.edge[1]} 70%);}
 .chip{position:absolute;left:72px;top:56px;display:flex;align-items:center;gap:12px;background:rgba(8,10,14,0.82);
   border:1.5px solid ${C.accent}66;border-radius:999px;padding:11px 26px;
@@ -136,9 +136,9 @@ ${FONT_CSS}
 .chip i{width:12px;height:12px;border-radius:50%;background:${C.accent};box-shadow:0 0 14px ${C.accent};}
 .txt{position:absolute;left:72px;bottom:64px;right:340px;}
 .eyebrow{font:900 26px InterB;letter-spacing:7px;color:${C.accentSoft};margin-bottom:14px;}
-h1{font-family:Anton;font-size:${size}px;line-height:0.98;color:#FAFBFD;letter-spacing:1px;
-  text-shadow:6px 6px 0 rgba(4,6,10,0.55);}
-h1 span{color:${C.accentText};text-shadow:6px 6px 0 rgba(4,6,10,0.55);}
+h1{font-family:Anton;font-size:${size}px;line-height:0.98;color:#FFFFFF;letter-spacing:1px;
+  text-shadow:6px 6px 0 rgba(3,5,9,0.94);}
+h1 span{color:${C.accentText};text-shadow:6px 6px 0 rgba(3,5,9,0.94);}
 .brand{position:absolute;right:56px;bottom:48px;font:900 24px InterB;letter-spacing:5px;color:${C.accentSoft};}
 </style></head><body><div class="stage">
 <div class="photo"></div><div class="shade"></div><div class="glowedge"></div>
@@ -155,18 +155,28 @@ h1 span{color:${C.accentText};text-shadow:6px 6px 0 rgba(4,6,10,0.55);}
 const pool = fs.existsSync(PHOTOS)
   ? fs.readdirSync(PHOTOS).filter(f => f.startsWith(CHANNEL + '-') && /\.jpe?g$/i.test(f))
   : [];
-if (!pool.length) { console.error(`FAIL: no photos for ${CHANNEL} in thumbnails/photos (${CHANNEL}-*.jpg)`); process.exit(1); }
 const photoArg = arg('photo');
-const imgFile = (typeof photoArg === 'string' && photoArg)
-  ? (pool.includes(photoArg) ? photoArg : pool.find(f => f.startsWith(photoArg)) || (pool.includes(photoArg + '.jpg') ? photoArg + '.jpg' : null))
-  : pool[hash(TITLE) % pool.length];
-if (!imgFile) { console.error('FAIL: --photo not found in pool'); process.exit(1); }
+let imgFile = null, imgPath = null;
+if (typeof photoArg === 'string' && photoArg && /[\/\\]/.test(photoArg)) {
+  // arbitrary path (absolute or repo-relative) — for per-topic downloaded photos
+  imgPath = path.isAbsolute(photoArg) ? photoArg : path.join(ROOT, photoArg);
+  if (!fs.existsSync(imgPath)) { console.error('FAIL: --photo path not found: ' + imgPath); process.exit(1); }
+} else {
+  if (!pool.length) { console.error(`FAIL: no photos for ${CHANNEL} in thumbnails/photos (${CHANNEL}-*.jpg)`); process.exit(1); }
+  if (typeof photoArg === 'string' && photoArg) {
+    imgFile = pool.includes(photoArg) ? photoArg : pool.find(f => f.startsWith(photoArg)) || (pool.includes(photoArg + '.jpg') ? photoArg + '.jpg' : null);
+    if (!imgFile) { console.error('FAIL: --photo not found in pool'); process.exit(1); }
+  } else {
+    imgFile = pool[hash(TITLE) % pool.length];
+  }
+  imgPath = path.join(PHOTOS, imgFile);
+}
 
 const d = derive(TITLE);
 const linesHtml = withAccent(d.lines, d.accentIdx);
 const size = d.lines.length >= 3 ? 96 : (d.lines.some(l => l.length > 14) ? 108 : 122);
 const chip = typeof arg('chip') === 'string' && arg('chip') ? arg('chip') : d.chip;
-const html = template({ img: path.join(PHOTOS, imgFile), chip, eyebrow: C.name, linesHtml, size });
+const html = template({ img: imgPath, chip, eyebrow: C.name, linesHtml, size });
 
 // ---------- render ----------
 const chrome = [
@@ -189,4 +199,4 @@ await new Promise(r => setTimeout(r, 200));
 await page.screenshot({ path: OUT });
 await browser.close();
 fs.rmSync(tmp, { force: true });
-console.log('OK: wrote', OUT, '(' + Math.round(fs.statSync(OUT).size / 1024) + 'KB) — [' + CHANNEL.toUpperCase() + '] "' + TITLE + '"  photo=' + imgFile + '  chip=' + chip);
+console.log('OK: wrote', OUT, '(' + Math.round(fs.statSync(OUT).size / 1024) + 'KB) — [' + CHANNEL.toUpperCase() + '] "' + TITLE + '"  photo=' + (imgFile || imgPath) + '  chip=' + chip);

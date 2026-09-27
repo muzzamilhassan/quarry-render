@@ -8,6 +8,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { Readable } from "node:stream";
 import { google } from "googleapis";
+import { resolvePosterPhoto } from "./poster-photo.mjs";
 
 const DIR = import.meta.dirname;
 const ROOT = path.resolve(DIR, "..");
@@ -26,6 +27,7 @@ const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET || "";
 const ONLY = process.argv.indexOf("--channel");
 const ONLY_SLUG = ONLY > 0 ? process.argv[ONLY + 1] : null;
 const DRY = process.argv.includes("--dry");
+const FORCE = process.argv.includes("--force"); // re-do even if ledger says done
 const BACKUP_DIR = path.join(ROOT, "state", "thumb-backup");
 const LEDGER = path.join(ROOT, "state", "poster-backfill.json");
 const MIN_SEC = 180; // long-form docs are 10+ min; shorts are <=3 min
@@ -100,12 +102,16 @@ async function processChannel(slug) {
   for (const v of longs) {
     const videoId = v.id;
     const title = v.snippet.title;
-    if (ledger[videoId]?.done && !ledger[videoId].dry) { skipped++; continue; }
+    if (ledger[videoId]?.done && !ledger[videoId].dry && !FORCE) { skipped++; continue; }
     try {
       const backup = await backupThumb(youtube, videoId);
       const out = path.join(ROOT, "thumbnails", "demos", `backfill-${videoId}.png`);
-      const r = spawnSync("node", [path.join(ROOT, "thumbnails", "poster-factory.mjs"),
-        "--channel", POSTER_KEY[slug] || "ic", "--title", title, "--out", out], { encoding: "utf8" });
+      const args = ["--channel", POSTER_KEY[slug] || "ic", "--title", title, "--out", out];
+      try {
+        const photo = await resolvePosterPhoto({ root: ROOT, slugKey: POSTER_KEY[slug] || "ic", title, tags: [], thumbSubject: null, pexelsKey: process.env.PEXELS_API_KEY });
+        if (photo) { args.push("--photo", photo.path); console.log(`   photo: ${photo.source}`); }
+      } catch (e) { console.log(`   [warn] subject photo failed — pool rotation`); }
+      const r = spawnSync("node", [path.join(ROOT, "thumbnails", "poster-factory.mjs"), ...args], { encoding: "utf8" });
       if (r.status !== 0 || !fs.existsSync(out)) throw new Error("poster failed: " + String(r.stderr || r.stdout).slice(-120));
       if (!DRY) {
         const media = new Readable(); media._read = () => { }; media.push(fs.readFileSync(out)); media.push(null);

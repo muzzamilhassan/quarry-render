@@ -71,9 +71,13 @@ Return ONLY JSON: {"scenes":[ ... ]} using EXACTLY these scene templates in this
    {"t":"bars","label":"STEP 3 — SHORT NAME","bars":[{"label":"INT","text":"4 bytes","v":4}],"caption":"compare line","text":"narration 35-50 words"}
    {"t":"clash","label":"STEP 4 — SHORT NAME","a":"db — US-East","b":"db — Europe","value":1001,"warn":"COLLISION — SHORT REASON","text":"narration 35-50 words"}
    {"t":"code","label":"STEP 5 — SHORT NAME","big":"short code reveal (max 44 chars)","caption":"why it matters","grid":true,"lines":["id = solve();"],"text":"narration 35-50 words"}
+   {"t":"rows","label":"STEP 2 — SHORT NAME","accent":"cyan","headline":"A common *X mistake*","window":"api.cloudx.dev","rows":[{"pill":"GET","text":"/getUsers","tag":"VERB","ok":false},{"pill":"GET","text":"/users","tag":"RESOURCE","ok":true}],"text":"narration 35-50 words"}
+   {"t":"selector","label":"STEP 3 — SHORT NAME","accent":"cyan","headline":"One URL, every *method*","icon":"🛒","url":"/orders/ord_7f3a91","methods":["GET","POST","PUT","DELETE"],"statuses":["RETRIEVED","CREATED","REPLACED","DELETED"],"text":"narration 35-50 words"}
+   {"t":"sim","label":"STEP 4 — SHORT NAME","accent":"cyan","headline":"The database generates the *number*","db":"app-db","seq":"id_seq","service":"app-service","start":1021,"lines":["INSERT INTO orders (customer) VALUES ('mia');"],"customers":["mia"],"foot":"NOTHING TO FIGURE OUT","text":"narration 35-50 words"}
 3. {"t":"end","headline":"Now you know.","sub":"FOLLOW FOR MORE","text":""}
 Rules:
-- Exactly 6 or 7 scenes. Scene 1 = title, last = end.
+- Exactly 6 or 7 scenes. Scene 1 = title, last = end. Prefer the UI scene templates (rows/selector/sim) — they demo the concept like a real product. Never the same template twice in a row.
+- Headlines may mark EXACTLY ONE keyword with *asterisks* (renders in accent color).
 - "text" = what the narrator SAYS. Plain English, direct, no em-dashes, no hashtags.
 - "lines" items must be realistic code/SQL/commands for the topic, each max 46 chars, max 2 lines per terminal.
 - Numbers/facts must be REAL and correct for the topic. Bars v values are relative sizes.

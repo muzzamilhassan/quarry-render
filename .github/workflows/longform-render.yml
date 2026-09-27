@@ -43,7 +43,9 @@ jobs:
             ffmpeg
 
       - name: Install Edge-TTS
-        run: python3 -m pip install --quiet --user edge-tts
+        run: |
+          python3 -m pip install --quiet --user edge-tts
+          python3 -m pip install --quiet --user yt-dlp
 
       - name: Install node dependencies
         working-directory: explainer
@@ -79,5 +81,6 @@ jobs:
             explainer/out/lf-thumb-${{ matrix.channel }}.jpg
             explainer/out/lf-srt-${{ matrix.channel }}.srt
             explainer/out/lf-meta-${{ matrix.channel }}.json
+            explainer/out/lf-kwcheck-${{ matrix.channel }}.json
           retention-days: 14
           if-no-files-found: error

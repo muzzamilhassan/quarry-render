@@ -23,6 +23,7 @@ const TOPIC = argOf("--topic", "How One Man Turned the 2008 Crash Into a $37 Bil
 const MINUTES = Math.min(Math.max(parseInt(argOf("--minutes", "5"), 10) || 5, 4), 15);
 const BRAND = argOf("--brand", "investors-compass");
 const MUSIC = argOf("--music", "quiet-night.mp3");
+const KEYWORD = argOf("--keyword", ""); // US-checked search phrase; spoken in the hook
 const WORDS_TOTAL = Math.round(MINUTES * 150);          // ~150 wpm narration
 const CHAPTERS = Math.max(4, Math.round(MINUTES / 1.1)); // ~65-75s chapters for 5 min = 4-5 chapters
 const WORDS_PER_CH = Math.round(WORDS_TOTAL / CHAPTERS);
@@ -113,6 +114,7 @@ async function generateOutline() {
 Write the outline for a ${MINUTES}-minute YouTube documentary case-study video.
 Topic: "${TOPIC}"
 Brand audience: ${BRAND} (money / investing psychology viewers).
+${KEYWORD ? `SEARCH HOOK RULE: the exact search phrase "${KEYWORD}" must be spoken naturally inside the HOOK (0:00-0:20). It is what viewers type into search; closed captions are indexed on it. Weave it in as if spoken by the narrator, never as a robotic keyword dump.` : ""}
 
 Return ONLY JSON:
 {
@@ -166,7 +168,7 @@ async function main() {
   const totalWords = chapters.reduce((a, c) => a + c.words, 0);
   const estMinutes = totalWords / 150;
   const doc = {
-    topic: TOPIC, brand: BRAND, minutes: MINUTES, musicTrack: MUSIC, generatedAt: new Date().toISOString(),
+    topic: TOPIC, brand: BRAND, minutes: MINUTES, musicTrack: MUSIC, keyword: KEYWORD, generatedAt: new Date().toISOString(),
     title: outline.title, hook: outline.hook, promise: outline.promise, chapters,
     stats: { totalWords, estMinutes: +estMinutes.toFixed(1), providers: "groq-gpt-oss-120b -> groq-qwen3.8-27b" },
   };

@@ -149,7 +149,30 @@ if (!topic || !topic.title) {
   topic = fbList[history.length % fbList.length];
   console.log(`[topic] AI failed - on-niche fallback: "${topic.title}"`);
 }
-const keyword = String(topic.keyword || CH.niche.split(",")[0]).trim();
+const rawKeyword = String(topic.keyword || CH.niche.split(",")[0]).trim();
+// ---------- 1b. live US keyword difficulty check (GH runners = US IPs) ----------
+// Picks the easiest winnable search phrase for THIS video. Never blocks a render:
+// any failure keeps rawKeyword. Full report -> explainer/out/lf-kwcheck-<slug>.json
+let keyword = rawKeyword;
+let kwCheck = null;
+const kcJson = path.join(EXPL, "out", `lf-kwcheck-${SLUG}.json`);
+try {
+  const kc = spawnSync("node", [path.join(DIR, "keyword-check.mjs"), "--topic", topic.title, "--seed", rawKeyword, "--niche", CH.niche, "--json", kcJson, "--max", "8"], { cwd: DIR, encoding: "utf8", timeout: 420000 });
+  if (kc.stdout) process.stdout.write(kc.stdout);
+  if (fs.existsSync(kcJson)) kwCheck = JSON.parse(fs.readFileSync(kcJson, "utf8"));
+  if (kwCheck && kwCheck.chosen && kwCheck.chosenScore === "EASY") {
+    keyword = kwCheck.chosen;
+    console.log(`[kwcheck] keyword: "${rawKeyword}" -> "${keyword}" (EASY)`);
+  } else {
+    console.log(`[kwcheck] kept "${keyword}" (${(kwCheck && kwCheck.chosenScore) || "check failed"})`);
+  }
+} catch (e) {
+  console.log(`[kwcheck] skipped, kept "${keyword}": ${String(e.message).slice(0, 90)}`);
+}
+if (!fs.existsSync(kcJson)) { // artifact guarantee: file always exists for the workflow upload
+  fs.mkdirSync(path.dirname(kcJson), { recursive: true });
+  fs.writeFileSync(kcJson, JSON.stringify({ checkedAt: new Date().toISOString(), region: "US", topic: topic.title, seed: rawKeyword, candidates: [], chosen: null, chosenScore: null, reason: "check never ran", status: "skipped" }, null, 2));
+}
 const titles5 = Array.isArray(topic.titles) ? topic.titles.filter(Boolean) : [];
 const scoreTitle = (t) => {
   const tt = String(t || "");
@@ -170,7 +193,7 @@ let script = null;
 for (let attempt = 0; attempt < 3 && !script; attempt++) {
   if (attempt > 0) { console.log(`[script] retry ${attempt}/2 after 45s (rate-limit burst)`); await new Promise((r) => setTimeout(r, 45000)); }
   fs.rmSync(path.join(DIR, "out"), { recursive: true, force: true }); // isolate this run's script dir
-  const gen = spawnSync("node", ["generate-longscript.mjs", "--topic", topic.title, "--minutes", MINUTES, "--brand", SLUG], { ...spawnOpts, cwd: DIR });
+  const gen = spawnSync("node", ["generate-longscript.mjs", "--topic", topic.title, "--minutes", MINUTES, "--brand", SLUG, "--keyword", keyword], { ...spawnOpts, cwd: DIR });
   if (gen.status !== 0) continue;
   const outRoot = path.join(DIR, "out");
   const slugDir = fs.readdirSync(outRoot).map((f) => path.join(outRoot, f)).filter((f) => fs.statSync(f).isDirectory()).sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0];
@@ -399,6 +422,7 @@ const srtPath = path.join(EXPL, "out", `lf-srt-${SLUG}.srt`);
 fs.writeFileSync(srtPath, srt || "1\n00:00:00,000 --> 00:00:02,000\n " + String.fromCharCode(92) + "n");
 const meta = {
   channel: SLUG, brand: CH.brand, title: String(bestTitle || script.title), keyword, description,
+  keywordCheck: kwCheck ? { seed: rawKeyword, chosen: kwCheck.chosen, score: kwCheck.chosenScore, region: "US" } : null,
   tags: [nicheWords[0], "documentary", "stories", SLUG],
   publishAt, durationMs: totalMs,
   music: track ? { title: track.title, credit: track.credit } : null,

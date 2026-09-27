@@ -1,0 +1,52 @@
+# One-off proof run for the keyword difficulty checker on a US GitHub runner.
+# Manual dispatch only — never scheduled. Safe: read-only module, no tokens.
+name: Keyword Check Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      topic:
+        description: "video topic"
+        required: true
+        default: "The Credit Card Minimum Payment Trap"
+      seed:
+        description: "seed keyword from topic planner"
+        required: true
+        default: "credit card minimum payment trap"
+      niche:
+        description: "channel niche"
+        required: false
+        default: "credit card traps, loans, debt"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install yt-dlp
+        run: python3 -m pip install --quiet --user yt-dlp
+
+      - name: Run keyword check (US runner)
+        working-directory: longvideo
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          yt-dlp --version
+          node keyword-check.mjs --topic "${{ inputs.topic }}" --seed "${{ inputs.seed }}" --niche "${{ inputs.niche }}" --json kwcheck-test.json
+          echo "----- RESULT JSON -----"
+          cat kwcheck-test.json
+
+      - name: Upload result
+        uses: actions/upload-artifact@v4
+        with:
+          name: kwcheck-test
+          path: longvideo/kwcheck-test.json
+          retention-days: 7

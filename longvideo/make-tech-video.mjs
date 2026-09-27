@@ -55,7 +55,8 @@ Scene rules:
 - Each chapter opens with "chapter" (num = 01, 02, ... in order) and uses ONE accent per chapter from: purple, orange, gold, green, pink (rotate in order). Every scene of that chapter repeats the same accent.
 - Every headline: max 46 chars, put EXACTLY ONE key term between *asterisks* (it renders in the accent color).
 - Use "rows" for endpoints/rules with a verdict tag; "sim" to show data flowing into a database (2-4 lines, start = believable id); "selector" to walk through 3-4 methods on one URL; "matrix" for resource×method grids (cell = one word); "compare" for two-option faceoffs; "showcase" only as an intro counting N items.
-- Keep old templates (steps/flow/bars/terminal/code/clash) for variety. 12-16 scenes total. First = title, last = end.
+- Keep old templates (steps/flow/bars/terminal/code/clash) for variety. 12-16 scenes total.
+- SCENE 1 MUST be {"t":"title"...} and the LAST scene MUST be {"t":"end"...}. EVERY middle scene — including chapter and showcase — needs "text" of 90-115 narration words.
 - "text" = narration. Teaching voice, direct, plain English, no em-dashes. Each 90-115 words.
 - Facts MUST be technically accurate for the topic. lines max 46 chars, max 2-3 per terminal.`
   : `You write scripts for "Dark Mode Minimalist Tech" explainer videos (60-100 seconds) in the style of modern coding channels.
@@ -111,27 +112,36 @@ const FALLBACK = { scenes: JSON.parse(fs.readFileSync(path.join(DIR, "fallback-e
 
 console.log(`[tech] topic: ${TOPIC}`);
 if (FORCE_FALLBACK) console.log("[tech] --force-fallback: using curated deep-dive script (skips AI)");
-let script = null;
-if (FORCE_FALLBACK) script = null;
-else try {
-  script = await gemini();
-  console.log("[script] gemini OK");
-} catch (e) { console.log(`[warn] gemini: ${String(e.message).slice(0, 90)}`); }
-if (!script && !FORCE_FALLBACK) {
-  try {
-    script = await groq();
-    console.log("[script] groq OK");
-  } catch (e) { console.log(`[warn] groq: ${String(e.message).slice(0, 90)}`); }
-}
 const minWords = MINUTES >= 5 ? 60 : 20;
-const okShape = script && Array.isArray(script.scenes)
-  && script.scenes.length >= (MINUTES >= 5 ? 11 : 6) && script.scenes.length <= 18
-  && script.scenes[0]?.t === "title" && script.scenes[script.scenes.length - 1]?.t === "end"
-  && script.scenes.slice(1, -1).every((s) => String(s.text || "").split(/\s+/).filter(Boolean).length >= minWords)
-  && script.scenes.slice(1, -1).every((s) => ["terminal", "counter", "bars", "clash", "code", "flow", "steps", "statement", "chapter", "rows", "sim", "selector", "matrix", "compare", "showcase"].includes(s.t));
-if (FORCE_FALLBACK || !okShape) {
-  console.log(`[script] weak/invalid AI scenes — using built-in UUID fallback`);
+const okShape = (s) => s && Array.isArray(s.scenes)
+  && s.scenes.length >= (MINUTES >= 5 ? 11 : 6) && s.scenes.length <= 18
+  && s.scenes[0]?.t === "title" && s.scenes[s.scenes.length - 1]?.t === "end"
+  && s.scenes.slice(1, -1).every((sc) => String(sc.text || "").split(/\s+/).filter(Boolean).length >= minWords)
+  && s.scenes.slice(1, -1).every((sc) => ["terminal", "counter", "bars", "clash", "code", "flow", "steps", "statement", "chapter", "rows", "sim", "selector", "matrix", "compare", "showcase"].includes(sc.t));
+// two full generation attempts (gemini then groq each); a script that parses but fails the
+// shape check counts as a failure — we retry rather than ship it
+let script = null;
+if (FORCE_FALLBACK) console.log("[script] AI skipped (--force-fallback)");
+else for (let attempt = 1; attempt <= 2 && !script; attempt++) {
+  for (const [name, gen] of [["gemini", gemini], ["groq", groq]]) {
+    if (script) break;
+    try {
+      const candidate = await gen();
+      if (okShape(candidate)) { script = candidate; console.log(`[script] ${name} OK (attempt ${attempt})`); }
+      else console.log(`[script] ${name} attempt ${attempt}: parsed but failed shape check — ${sDescribe(candidate)}`);
+    } catch (e) { console.log(`[warn] ${name} attempt ${attempt}: ${String(e.message).slice(0, 90)}`); }
+  }
+}
+function sDescribe(s) {
+  if (!s || !Array.isArray(s.scenes)) return "no scenes array";
+  const bad = s.scenes.slice(1, -1).filter((sc) => String(sc.text || "").split(/\s+/).filter(Boolean).length < minWords).map((sc) => sc.t);
+  return `${s.scenes.length} scenes, first=${s.scenes[0]?.t}, last=${s.scenes[s.scenes.length - 1]?.t}${bad.length ? `, short-text scenes: ${bad.join(",")}` : ""}`;
+}
+if (FORCE_FALLBACK) {
   script = FALLBACK;
+  console.log("[script] using built-in deep-dive fallback (--force-fallback)");
+} else if (!script) {
+  throw new Error("AI script failed shape check after retries — failing render rather than shipping mismatched fallback content (re-run publish; fallback=true forces the curated script)");
 }
 const scenes = script.scenes;
 const midwords = scenes.slice(1, -1).reduce((a, s) => a + String(s.text || "").split(/\s+/).filter(Boolean).length, 0);

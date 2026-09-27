@@ -12,7 +12,9 @@ import crypto from "node:crypto";
 
 const STOP = new Set(["THE", "A", "AN", "OF", "AND", "TO", "IN", "ON", "FOR", "FROM", "HOW", "WHY", "WHAT", "WHEN", "WITH", "THAT", "THIS", "HIS", "HER", "ITS", "INTO", "OVER", "MOST", "EVER"]);
 // verbs/adjectives — fine for a Pexels mood search, but never a Wikipedia subject
-const NOT_WIKI = new Set(["CRUSHED", "STOLE", "STOLEN", "BROKE", "BROKEN", "CRASHED", "FOOLED", "LIED", "WENT", "MADE", "CHANGED", "STAYED", "BEAT", "BLEW", "VANISHED", "TRAPPED", "TRAP", "SURPRISING", "FORGOTTEN", "SLEEPING", "PATIENT", "UNSHAKABLE", "TIMELESS", "DEADLIEST", "COLLAPSE", "COLLAPSED", "SCAM", "FRAUD", "RICHEST", "GREATEST", "WORST", "FIRST", "RULES", "LESSONS", "SECRETS", "STORY", "MONEY", "MILLION", "BILLION", "MILLIONAIRE", "BILLIONAIRE", "CRISIS"]);
+const NOT_WIKI = new Set(["CRUSHED", "STOLE", "STOLEN", "BROKE", "BROKEN", "CRASHED", "FOOLED", "LIED", "WENT", "MADE", "CHANGED", "STAYED", "BEAT", "BLEW", "VANISHED", "TRAPPED", "TRAP", "SURPRISING", "FORGOTTEN", "SLEEPING", "PATIENT", "UNSHAKABLE", "TIMELESS", "DEADLIEST", "COLLAPSE", "COLLAPSED", "SCAM", "FRAUD", "RICHEST", "GREATEST", "WORST", "FIRST", "RULES", "LESSONS", "SECRETS", "STORY", "MONEY", "MILLION", "BILLION", "MILLIONAIRE", "BILLIONAIRE", "CRISIS",
+  // generic single nouns that produced junk wiki matches (Crash Bandicoot, Wall, World, Game…)
+  "CRASH", "WORLD", "WALL", "GAME", "MARKET", "MARKETS", "STREET", "FALL", "BET", "TICKET", "INDUSTRY", "EMPIRE", "PLAGUE", "MEDIA", "MAN", "DAY", "DAYS", "WAY", "WAR", "DOLLAR", "DOLLARS", "RISE", "INSIDE", "TRUE", "REAL", "SECRET", "UNTOLD", "MIND", "LIFE", "HISTORY", "EDGE", "SAGE", "SLAVE", "DEAL", "DEALS"]);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -65,7 +67,7 @@ async function fetchBuf(url, headers = {}) {
   return Buffer.from(await r.arrayBuffer());
 }
 
-export async function wikiPhotoFor(query, dest) {
+export async function wikiPhotoFor(query, dest, usedSources) {
   const api = "https://en.wikipedia.org/w/api.php";
   const headers = { "User-Agent": "QuarryStudio/1.0 (thumbnail pipeline)" };
   // a 2-word query must match BOTH words in the article title — stops generic
@@ -75,7 +77,7 @@ export async function wikiPhotoFor(query, dest) {
   let arts = [];
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const r = await fetch(`${api}?action=query&format=json&list=search&srsearch=${encodeURIComponent(query)}&srlimit=3`, { headers });
+      const r = await fetch(`${api}?action=query&format=json&list=search&srsearch=${encodeURIComponent(query)}&srlimit=4`, { headers });
       const sr = await r.json();
       arts = (sr.query?.search || []).map((s) => s.title);
       break;
@@ -89,6 +91,7 @@ export async function wikiPhotoFor(query, dest) {
       const all = sigWords.every((w) => low.includes(" " + w.toLowerCase() + " "));
       if (!all) continue;
     }
+    if (usedSources && usedSources.has("wikipedia:" + title)) continue; // no-repeat across videos
     try {
       const pi = await (await fetch(`${api}?action=query&format=json&titles=${encodeURIComponent(title)}&prop=pageimages&piprop=thumbnail&pithumbsize=1200`, { headers })).json();
       const src = Object.values(pi.query?.pages || {})[0]?.thumbnail?.source;
@@ -102,8 +105,9 @@ export async function wikiPhotoFor(query, dest) {
   return null;
 }
 
-export async function pexelsPhotoFor(query, dest, key) {
+export async function pexelsPhotoFor(query, dest, key, usedSources) {
   if (!key) return null;
+  if (usedSources?.has("pexels:" + query)) return null; // no-repeat across videos
   try {
     const r = await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=5&orientation=landscape`, { headers: { Authorization: key } });
     if (!r.ok) return null;
@@ -138,17 +142,28 @@ export function poolPhotoFor(root, slugKey, title) {
 }
 
 // main entry: returns { path, source } or null (caller falls back to plain pool hash)
+// Downloaded sources are also de-duplicated per channel (a channel never shows
+// the same wiki article / pexels query twice), via state/poster-photos-used.json.
 export async function resolvePosterPhoto({ root, slugKey, title, tags = [], thumbSubject, pexelsKey }) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "poster-"));
-  const wikiQs = wikiCandidates(title, tags, thumbSubject);
-  for (const q of wikiQs) {
-    const hit = await wikiPhotoFor(q, path.join(tmp, crypto.randomUUID() + ".jpg"));
-    if (hit) return hit;
+  const ledgerPath = path.join(root, "state", "poster-photos-used.json");
+  let ledger = {};
+  try { ledger = JSON.parse(fs.readFileSync(ledgerPath, "utf8")); } catch { }
+  const usedSources = new Set(ledger[`${slugKey}-sources`] || []);
+  const remember = (src) => {
+    usedSources.add(src);
+    ledger[`${slugKey}-sources`] = [...usedSources].slice(-120);
+    fs.mkdirSync(path.dirname(ledgerPath), { recursive: true });
+    fs.writeFileSync(ledgerPath, JSON.stringify(ledger, null, 2));
+  };
+  for (const q of wikiCandidates(title, tags, thumbSubject)) {
+    const hit = await wikiPhotoFor(q, path.join(tmp, crypto.randomUUID() + ".jpg"), usedSources);
+    if (hit) { remember(hit.source); return hit; }
     await sleep(350); // be polite to the Wikipedia API between videos/queries
   }
   for (const q of photoCandidates(title, tags, thumbSubject)) {
-    const hit = await pexelsPhotoFor(q, path.join(tmp, crypto.randomUUID() + ".jpg"), pexelsKey);
-    if (hit) return hit;
+    const hit = await pexelsPhotoFor(q, path.join(tmp, crypto.randomUUID() + ".jpg"), pexelsKey, usedSources);
+    if (hit) { remember(hit.source); return hit; }
   }
   return poolPhotoFor(root, slugKey, title);
 }

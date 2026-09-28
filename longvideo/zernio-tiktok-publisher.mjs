@@ -4,6 +4,7 @@
 // frees up over time, so failed attempts are retried with a delay. Set
 // ZERNIO_TIKTOK_DRAFT=true to fall back to Creator-Inbox drafts instead.
 import fs from 'node:fs';
+import path from 'node:path';
 
 const ZERNIO_API = 'https://api.zernio.com/v1';
 const CAPTION_LIMIT = 2200; // TikTok caption cap incl. hashtags
@@ -296,6 +297,7 @@ if (process.argv[1] && process.argv[1].endsWith('zernio-tiktok-publisher.mjs')) 
     // Post every produced QuoteQuarry reel from the outbox to TikTok (dedup by caption)
     const dir = 'fb-outbox/quotequarry';
     const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => /-s[0-9]+[.]json([.][a-z-]+)*$/.test(f)) : [];
+    console.log('  [debug] outbox:', fs.existsSync(dir) ? fs.readdirSync(dir) : 'DIR MISSING');
     const apiKey = envOf('ZERNIO_API_KEY');
     let existing = new Set();
     try {
@@ -308,7 +310,7 @@ if (process.argv[1] && process.argv[1].endsWith('zernio-tiktok-publisher.mjs')) 
     let posted = 0;
     for (const e of entries) {
       let meta;
-      try { meta = JSON.parse(fs.readFileSync(path.join(dir, e.f), 'utf8')); } catch { continue; }
+      try { meta = JSON.parse(fs.readFileSync(path.join(dir, e.f), 'utf8')); } catch (e2) { console.log('  parse failed:', e.f, String(e2.message).slice(0, 60)); continue; }
       const caption = clip(`${meta.title || ''} ${(meta.tags || []).map(t => '#' + String(t).replace(/\s+/g, '')).join(' ')}`);
       if (existing.has(caption.trim().toLowerCase())) { console.log('  skip (already on TikTok):', String(meta.title).slice(0, 40)); continue; }
       if (!meta.videoFile || !fs.existsSync(meta.videoFile)) { console.log('  skip (video missing):', e.f); continue; }

@@ -47,6 +47,16 @@ jobs:
           ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
         run: node longvideo/tiktok-clips.mjs post-next
 
+      - name: Save posting state
+        run: |
+          if [ -f state/tiktok-clips.json ]; then
+            git config user.name "tiktok-bot"
+            git config user.email "bot@users.noreply.github.com"
+            git add state/tiktok-clips.json
+            git commit -m "tiktok posting state [skip ci]" || true
+            git push origin HEAD:main || (git pull --rebase -q origin main && git push origin HEAD:main) || true
+          fi
+
       - name: Post new shorts reels to TikTok
         env:
           ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}

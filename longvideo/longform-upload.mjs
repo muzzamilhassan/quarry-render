@@ -11,7 +11,7 @@ import { google } from "googleapis";
 
 const DIR = import.meta.dirname;
 const ROOT = path.resolve(DIR, "..");
-const RENDER_REPO = "muzzamilhassan/quarry-render"; // SAME repo — public = free minutes
+const RENDER_REPO = "muzzamilhassan/quarry-render";
 const GH_TOKEN = process.env.GITHUB_PAT || process.env.GH_TOKEN || "";
 const ONLY = process.argv.indexOf("--channel");
 const ONLY_SLUG = ONLY > 0 ? process.argv[ONLY + 1] : null;
@@ -81,25 +81,6 @@ function channelAuth(slug) {
   const a = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET);
   a.setCredentials({ refresh_token: t.refresh_token });
   return a;
-}
-
-// ---- poster thumbnail (How-Dev-Works photo-poster style — user pick 09-26) ----
-// Photo relevance: per-topic Wikipedia/Pexels photo when possible, pool only as
-// last resort with no-repeat rotation (see poster-photo.mjs).
-import { resolvePosterPhoto } from "./poster-photo.mjs";
-const POSTER_KEY = { "investors-compass": "ic", "money-rulebook": "mr", "debt-free-doctrine": "dfd", "quotequarry": "qq" };
-async function buildPoster(slug, meta) {
-  const key = POSTER_KEY[slug] || "ic";
-  const out = path.join(THUMB_DIR, "demos", `poster-${slug}.png`);
-  const args = [path.join(THUMB_DIR, "poster-factory.mjs"), "--channel", key, "--title", String(meta.title || ""), "--out", out];
-  try {
-    const photo = await resolvePosterPhoto({ root: ROOT, slugKey: key, title: String(meta.title || ""), tags: meta.tags || [], thumbSubject: meta.thumbSubject, pexelsKey: process.env.PEXELS_API_KEY });
-    if (photo) { args.push("--photo", photo.path); console.log(`[thumb] subject photo: ${photo.source}`); }
-  } catch (e) { console.log(`[warn] subject photo failed (${String(e.message).slice(0, 60)}) — using pool`); }
-  const r = spawnSync("node", args, { encoding: "utf8" });
-  if (r.status !== 0 || !fs.existsSync(out)) throw new Error(String(r.stderr || r.stdout || "render failed").slice(-140));
-  console.log(`[thumb] poster style for ${slug}: "${String(meta.title || "").slice(0, 60)}"`);
-  return out;
 }
 
 // ---- documentary thumbnail generation (approved style, see thumbnails/gen-doc-thumbnail.py) ----
@@ -209,10 +190,7 @@ async function processChannel(slug) {
   let thumbFile = path.join(inbox, meta.thumbFile);
   if (!fs.existsSync(videoFile)) throw new Error("video missing in artifact");
   try {
-    let gen = null;
-    try { gen = await buildPoster(slug, meta); }
-    catch (e) { console.log(`[warn] poster thumbnail failed (${String(e.message).slice(0, 90)}) — trying doc style`); }
-    if (!gen) gen = await buildThumbnail(slug, meta);
+    const gen = await buildThumbnail(slug, meta);
     if (gen) thumbFile = gen;
   } catch (e) {
     console.log(`[warn] style thumbnail skipped (${String(e.message).slice(0, 90)}) — using render thumbnail`);
@@ -247,6 +225,21 @@ async function processChannel(slug) {
       console.log("[upload] thumbnail set");
     } catch (e) { console.log(`[warn] thumbnail: ${String(e.message).slice(0, 80)}`); }
   }
+  // SEO: closed captions (indexed for search) from the word-timing .srt
+  const srtFile = path.join(inbox, meta.srtFile || `lf-srt-${slug}.srt`);
+  if (fs.existsSync(srtFile)) {
+    try {
+      const cs = new Readable(); cs._read = () => { }; cs.push(fs.readFileSync(srtFile)); cs.push(null);
+      await youtube.captions.insert({ part: ["snippet"], requestBody: { snippet: { videoId, language: "en", name: "English" } }, media: { body: cs, mimeType: "text/plain" } });
+      console.log("[upload] captions uploaded");
+    } catch (e) { console.log(`[warn] captions: ${String(e.message).slice(0, 90)}`); }
+  }
+  // SEO: pinned comment with the keyword question
+  try {
+    const kw = meta.keyword || "this story";
+    await youtube.commentThreads.insert({ part: "snippet", requestBody: { snippet: { videoId, topLevelComment: { snippet: { textOriginal: `Everything about ${kw} is in this video. Which part surprised you the most?` } } } } });
+    console.log("[upload] pinned comment posted");
+  } catch (e) { console.log(`[warn] comment: ${String(e.message).slice(0, 80)}`); }
   uploads[slug] = (uploads[slug] || []).concat([{ date: new Date().toISOString().slice(0, 10), title: meta.title, videoId, publishAt, artifactId: chosen.art.id, runId: chosen.run }]).slice(-100);
   fs.mkdirSync(path.dirname(UPL), { recursive: true });
   fs.writeFileSync(UPL, JSON.stringify(uploads, null, 2));

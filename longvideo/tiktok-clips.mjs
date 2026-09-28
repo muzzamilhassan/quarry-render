@@ -156,6 +156,8 @@ async function ensureQueue() {
   const queue = [];
   for (const p of parts) {
     const name = path.basename(p.file);
+    const existing = (rel.assets || []).find((a) => a.name === name);
+    if (existing) { queue.push({ part: p.part, asset: existing.name, url: existing.url, start: p.start }); continue; }
     const up = await fetch(`https://uploads.github.com/repos/${REPO}/releases/${rel.id}/assets?name=${name}`, {
       method: "POST", headers: { Authorization: `Bearer ${TOK}`, "User-Agent": "quarry-tiktok", "Content-Type": "application/octet-stream" }, body: fs.readFileSync(p.file),
     });

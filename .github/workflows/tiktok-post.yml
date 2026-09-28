@@ -56,8 +56,3 @@ jobs:
             git commit -m "tiktok posting state [skip ci]" || true
             git push origin HEAD:main || (git pull --rebase -q origin main && git push origin HEAD:main) || true
           fi
-
-      - name: Post new shorts reels to TikTok
-        env:
-          ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
-        run: node zernio-tiktok-publisher.mjs post-all-qq

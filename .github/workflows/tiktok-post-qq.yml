@@ -1,0 +1,53 @@
+# TikTok posting for QuoteQuarry: restores the latest produced-reels outbox
+# from the actions cache and posts any not-yet-posted reels via Zernio
+# (direct post, drafts fallback). Safe to re-run — captions are deduped.
+name: TikTok Post (QuoteQuarry)
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "25 9,13,17,21 * * *"
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Restore latest reels outbox
+        uses: actions/cache/restore@v4
+        with:
+          path: fb-outbox/quotequarry
+          key: ig-outbox-quotequarry-nothing
+          restore-keys: |
+            ig-outbox-quotequarry-
+
+      - name: Post new reels to TikTok
+        env:
+          ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
+      - name: Clip newest long-form into TikTok parts (if new)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
+        run: node longvideo/tiktok-clips.mjs ensure-queue
+
+      - name: Post next TikTok part
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
+        run: node longvideo/tiktok-clips.mjs post-next
+
+      - name: Post new shorts reels to TikTok
+        env:
+          ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
+        run: node zernio-tiktok-publisher.mjs post-all-qq

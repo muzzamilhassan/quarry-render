@@ -8,6 +8,9 @@ on:
   schedule:
     - cron: "25 9,13,17,21 * * *"
 
+permissions:
+  contents: write
+
 jobs:
   post:
     runs-on: ubuntu-latest

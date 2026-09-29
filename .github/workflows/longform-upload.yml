@@ -38,6 +38,9 @@ jobs:
           npx --yes @puppeteer/browsers install chrome@stable --path "$HOME/chrome-cache"
           echo "CHROME_PATH=$(find "$HOME/chrome-cache" -name chrome -type f | head -1)" >> "$GITHUB_ENV"
 
+      - name: Guard — poster integration must be in the uploader
+        run: grep -q "buildPoster" longvideo/longform-upload.mjs || { echo "::error::uploader lost the poster-thumbnail integration (a sync overwrote it) — restore the buildPoster block"; exit 1; }
+
       - name: Generate thumbnails + schedule uploads
         env:
           GH_TOKEN: ${{ github.token }}

@@ -98,6 +98,8 @@ export async function wikiPhotoFor(query, dest, usedSources) {
       let hits = 0;
       for (const w of sigWords) if (low.includes(" " + w.toLowerCase() + " ")) hits++;
       if (hits < needN) continue;
+    } else if (!title.toLowerCase().startsWith(sigWords[0].toLowerCase())) {
+      continue; // single word must lead the article title ("Bad" ≠ "Breaking Bad")
     }
     if (usedSources && usedSources.has("wikipedia:" + title)) continue; // no-repeat across videos
     try {

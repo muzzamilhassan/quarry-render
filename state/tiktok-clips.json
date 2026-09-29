@@ -1,109 +1,95 @@
 {
-  "lastRunId": "36348465443",
+  "lastRunId": "36494016637",
   "doneRuns": [
-    "36348465443"
+    "36348465443",
+    "36494016637"
   ],
   "queue": {
-    "title": "Zeno of Citium origin story: 5 Lessons",
-    "keyword": "zeno of citium stoicism",
-    "total": 12,
+    "title": "Quote Quarry story",
+    "keyword": "stoic wisdom",
+    "total": 13,
     "parts": [
       {
         "part": 1,
         "asset": "part-01.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596074427",
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596845725",
         "start": 0,
         "posted": true,
-        "postedAt": "2026-09-28T18:14:07Z"
+        "postedAt": "2026-09-29T01:06:07.218Z"
       },
       {
         "part": 2,
         "asset": "part-02.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596074446",
-        "start": 0,
-        "posted": true,
-        "postedAt": "2026-09-28T18:50:32.226Z"
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596845743",
+        "start": 58
       },
       {
         "part": 3,
         "asset": "part-03.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596074467",
-        "start": 0,
-        "posted": false,
-        "postedAt": null
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596845775",
+        "start": 116
       },
       {
         "part": 4,
         "asset": "part-04.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596074498",
-        "start": 0,
-        "posted": false,
-        "postedAt": null
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596845796",
+        "start": 174
       },
       {
         "part": 5,
         "asset": "part-05.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596074527",
-        "start": 0,
-        "posted": false,
-        "postedAt": null
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596845819",
+        "start": 232
       },
       {
         "part": 6,
         "asset": "part-06.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596074570",
-        "start": 0,
-        "posted": false,
-        "postedAt": null
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596845842",
+        "start": 290
       },
       {
         "part": 7,
         "asset": "part-07.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596074596",
-        "start": 0,
-        "posted": false,
-        "postedAt": null
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596845869",
+        "start": 348
       },
       {
         "part": 8,
         "asset": "part-08.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596074622",
-        "start": 0,
-        "posted": false,
-        "postedAt": null
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596845887",
+        "start": 406
       },
       {
         "part": 9,
         "asset": "part-09.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596074650",
-        "start": 0,
-        "posted": false,
-        "postedAt": null
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596845909",
+        "start": 464
       },
       {
         "part": 10,
         "asset": "part-10.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596074673",
-        "start": 0,
-        "posted": false,
-        "postedAt": null
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596845944",
+        "start": 522
       },
       {
         "part": 11,
         "asset": "part-11.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596074700",
-        "start": 0,
-        "posted": false,
-        "postedAt": null
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596845977",
+        "start": 580
       },
       {
         "part": 12,
         "asset": "part-12.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596074731",
-        "start": 0,
-        "posted": false,
-        "postedAt": null
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596846007",
+        "start": 638
+      },
+      {
+        "part": 13,
+        "asset": "part-13.mp4",
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/596846062",
+        "start": 696
       }
     ]
-  }
+  },
+  "lastArtifactId": 11004052386
 }

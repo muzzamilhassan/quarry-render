@@ -14,7 +14,8 @@ const STOP = new Set(["THE", "A", "AN", "OF", "AND", "TO", "IN", "ON", "FOR", "F
 // verbs/adjectives — fine for a Pexels mood search, but never a Wikipedia subject
 const NOT_WIKI = new Set(["CRUSHED", "STOLE", "STOLEN", "BROKE", "BROKEN", "CRASHED", "FOOLED", "LIED", "WENT", "MADE", "CHANGED", "STAYED", "BEAT", "BLEW", "VANISHED", "TRAPPED", "TRAP", "SURPRISING", "FORGOTTEN", "SLEEPING", "PATIENT", "UNSHAKABLE", "TIMELESS", "DEADLIEST", "COLLAPSE", "COLLAPSED", "SCAM", "FRAUD", "RICHEST", "GREATEST", "WORST", "FIRST", "RULES", "LESSONS", "SECRETS", "STORY", "MONEY", "MILLION", "BILLION", "MILLIONAIRE", "BILLIONAIRE", "CRISIS",
   // generic single nouns that produced junk wiki matches (Crash Bandicoot, Wall, World, Game…)
-  "CRASH", "WORLD", "WALL", "GAME", "MARKET", "MARKETS", "STREET", "FALL", "BET", "TICKET", "INDUSTRY", "EMPIRE", "PLAGUE", "MEDIA", "MAN", "DAY", "DAYS", "WAY", "WAR", "DOLLAR", "DOLLARS", "RISE", "INSIDE", "TRUE", "REAL", "SECRET", "UNTOLD", "MIND", "LIFE", "HISTORY", "EDGE", "SAGE", "SLAVE", "DEAL", "DEALS"]);
+  "CRASH", "WORLD", "WALL", "GAME", "MARKET", "MARKETS", "STREET", "FALL", "BET", "TICKET", "INDUSTRY", "EMPIRE", "PLAGUE", "MEDIA", "MAN", "DAY", "DAYS", "WAY", "WAR", "DOLLAR", "DOLLARS", "RISE", "INSIDE", "TRUE", "REAL", "SECRET", "UNTOLD", "MIND", "LIFE", "HISTORY", "EDGE", "SAGE", "SLAVE", "DEAL", "DEALS",
+  "FLASH", "SPARKED", "EXPLAINED", "AVOID", "MISTAKE", "DOWNFALL", "CHAINS", "ORIGIN", "MODERN", "CHOICES", "CAUSED", "PAID"]);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -34,7 +35,7 @@ function pairWords(words) {
   return keep.slice(0, 2).join(" ").trim();
 }
 
-// query candidates: subject pin > tail pair > lead pair > segment itself
+// query candidates: subject pin > full segments (max 6 words) > tail pair > lead pair
 // (big word is appended only for Pexels — generic verbs pull junk wiki articles)
 export function photoCandidates(title, tags = [], thumbSubject) {
   const out = [];
@@ -42,13 +43,17 @@ export function photoCandidates(title, tags = [], thumbSubject) {
   push(thumbSubject);
   const segs = String(title || "").split(/\s*[:—–|]\s*/).filter(Boolean);
   for (const seg of segs.slice(0, 2)) {
+    const ws = seg.trim().split(/\s+/).slice(0, 6).join(" "); // full segment — search engines rank it well
+    push(ws);
+  }
+  for (const seg of segs.slice(0, 2)) {
     const ws = seg.trim().split(/\s+/);
     push(pairWords(ws.slice(-2)));            // "…Crushed Barings Bank" -> "Barings Bank"
     push(pairWords(ws.slice(0, 2)));          // "Marcus Aurelius Stoic…" -> "Marcus Aurelius"
   }
   push((tags || [])[0]);
   push(bigWord(title));
-  return out.slice(0, 6);
+  return out.slice(0, 7);
 }
 
 export function wikiCandidates(title, tags = [], thumbSubject) {
@@ -70,10 +75,12 @@ async function fetchBuf(url, headers = {}) {
 export async function wikiPhotoFor(query, dest, usedSources) {
   const api = "https://en.wikipedia.org/w/api.php";
   const headers = { "User-Agent": "QuarryStudio/1.0 (thumbnail pipeline)" };
-  // a 2-word query must match BOTH words in the article title — stops generic
-  // phrases like "Changed History" from pulling an unrelated article's photo
+  // a multi-word query must match at least 2 of its words in the article title
+  // — stops generic phrases like "Changed History" or single words like "flash"
+  // from pulling an unrelated article's photo
   const sigWords = String(query).split(/\s+/).filter((w) => w.replace(/[^A-Za-z0-9]/g, "") && !STOP.has(w.replace(/[^A-Za-z0-9]/g, "").toUpperCase()));
   const needAll = sigWords.length >= 2;
+  const needN = 2;
   let arts = [];
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -88,8 +95,9 @@ export async function wikiPhotoFor(query, dest, usedSources) {
   for (const title of arts) {
     if (needAll) {
       const low = " " + title.toLowerCase().replace(/[^a-z0-9 ]/g, " ") + " ";
-      const all = sigWords.every((w) => low.includes(" " + w.toLowerCase() + " "));
-      if (!all) continue;
+      let hits = 0;
+      for (const w of sigWords) if (low.includes(" " + w.toLowerCase() + " ")) hits++;
+      if (hits < needN) continue;
     }
     if (usedSources && usedSources.has("wikipedia:" + title)) continue; // no-repeat across videos
     try {

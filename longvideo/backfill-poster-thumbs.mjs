@@ -67,7 +67,8 @@ async function backupThumb(youtube, videoId) {
       if (buf.length > 5000) { fs.writeFileSync(dest, buf); return dest; }
     } catch { }
   }
-  throw new Error("no thumbnail available to back up");
+  // scheduled/private videos have no public thumbnail yet — nothing to back up
+  return null;
 }
 
 async function processChannel(slug) {
@@ -117,7 +118,7 @@ async function processChannel(slug) {
         const media = new Readable(); media._read = () => { }; media.push(fs.readFileSync(out)); media.push(null);
         await youtube.thumbnails.set({ videoId, media: { body: media } });
       }
-      ledger[videoId] = { channel: slug, title, done: new Date().toISOString().slice(0, 10), dry: DRY || undefined, oldThumb: path.relative(ROOT, backup) };
+      ledger[videoId] = { channel: slug, title, done: new Date().toISOString().slice(0, 10), dry: DRY || undefined, oldThumb: backup ? path.relative(ROOT, backup) : "(none — video not public yet)" };
       done++;
       fs.rmSync(out, { force: true });
       console.log(`[ok ${done}] ${videoId}  "${title.slice(0, 60)}" (old thumb saved)`);

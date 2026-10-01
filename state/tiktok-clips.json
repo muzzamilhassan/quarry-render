@@ -1,9 +1,10 @@
 {
-  "lastRunId": "36634447303",
+  "lastRunId": "36780631568",
   "doneRuns": [
     "36348465443",
     "36494016637",
-    "36634447303"
+    "36634447303",
+    "36780631568"
   ],
   "queue": {
     "title": "Quote Quarry story",
@@ -13,80 +14,78 @@
       {
         "part": 1,
         "asset": "part-01.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/601326921",
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/603670734",
         "start": 0,
         "posted": true,
-        "postedAt": "2026-09-30T16:17:05.632Z"
+        "postedAt": "2026-10-01T16:34:51.711Z"
       },
       {
         "part": 2,
         "asset": "part-02.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/601326952",
-        "start": 58,
-        "posted": true,
-        "postedAt": "2026-09-30T21:27:48.679Z"
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/603670760",
+        "start": 58
       },
       {
         "part": 3,
         "asset": "part-03.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/601326980",
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/603670784",
         "start": 116
       },
       {
         "part": 4,
         "asset": "part-04.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/601326996",
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/603670809",
         "start": 174
       },
       {
         "part": 5,
         "asset": "part-05.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/601327036",
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/603670830",
         "start": 232
       },
       {
         "part": 6,
         "asset": "part-06.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/601327067",
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/603670866",
         "start": 290
       },
       {
         "part": 7,
         "asset": "part-07.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/601327085",
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/603670908",
         "start": 348
       },
       {
         "part": 8,
         "asset": "part-08.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/601327096",
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/603670940",
         "start": 406
       },
       {
         "part": 9,
         "asset": "part-09.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/601327112",
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/603670969",
         "start": 464
       },
       {
         "part": 10,
         "asset": "part-10.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/601327131",
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/603670985",
         "start": 522
       },
       {
         "part": 11,
         "asset": "part-11.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/601327179",
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/603670994",
         "start": 580
       },
       {
         "part": 12,
         "asset": "part-12.mp4",
-        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/601327197",
+        "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/603671021",
         "start": 638
       }
     ]
   },
-  "lastArtifactId": 11064358689
+  "lastArtifactId": 11128518865
 }

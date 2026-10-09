@@ -91,7 +91,9 @@
         "part": 10,
         "asset": "part-10.mp4",
         "url": "https://api.github.com/repos/muzzamilhassan/quarry-render/releases/assets/610983247",
-        "start": 522
+        "start": 522,
+        "posted": true,
+        "postedAt": "2026-10-09T16:20:36.302Z"
       },
       {
         "part": 11,
